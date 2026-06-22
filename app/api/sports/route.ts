@@ -96,9 +96,58 @@ function formatMatchTime(dateStr: string, timeZone = "America/Bogota"): { date: 
 
 // ─── Atletico Nacional (API-Football) ────────────────────────────────────────
 
-const NACIONAL_TEAM_ID  = 2271;
-const LIGA_BETPLAY_ID   = 239;
-const FOOTBALL_API_BASE = "https://v3.football.api-sports.io";
+const NACIONAL_TEAM_ID    = 2271;
+const LIGA_BETPLAY_ID     = 239;
+const COPA_LIBERTADORES_ID = 13;
+const FOOTBALL_API_BASE   = "https://v3.football.api-sports.io";
+
+async function parseFixture(res: PromiseSettledResult<Response>): Promise<MatchResult | null> {
+  if (res.status !== "fulfilled" || !res.value.ok) return null;
+  const d = await res.value.json();
+  const f = d.response?.[0];
+  if (!f) return null;
+  return {
+    homeTeam:    f.teams.home.name,
+    awayTeam:    f.teams.away.name,
+    homeScore:   f.goals.home ?? 0,
+    awayScore:   f.goals.away ?? 0,
+    date:        f.fixture.date,
+    competition: f.league.name,
+  };
+}
+
+async function parseUpcoming(res: PromiseSettledResult<Response>): Promise<UpcomingMatch | null> {
+  if (res.status !== "fulfilled" || !res.value.ok) return null;
+  const d = await res.value.json();
+  const f = d.response?.[0];
+  if (!f) return null;
+  const { date, time } = formatMatchTime(f.fixture.date);
+  return {
+    homeTeam:    f.teams.home.name,
+    awayTeam:    f.teams.away.name,
+    date, time,
+    venue:       f.fixture.venue?.name ?? "",
+    competition: f.league.name,
+  };
+}
+
+async function parseNacionalStanding(res: PromiseSettledResult<Response>, leagueName: string): Promise<Standing | null> {
+  if (res.status !== "fulfilled" || !res.value.ok) return null;
+  const d = await res.value.json();
+  const s = d.response?.[0]?.league?.standings?.[0]?.find(
+    (t: Record<string, unknown>) => (t.team as Record<string, unknown>)?.id === NACIONAL_TEAM_ID
+  );
+  if (!s) return null;
+  return {
+    position: s.rank,
+    points:   s.points,
+    played:   s.all?.played ?? 0,
+    won:      s.all?.win ?? 0,
+    drawn:    s.all?.draw ?? 0,
+    lost:     s.all?.lose ?? 0,
+    league:   leagueName,
+  };
+}
 
 async function fetchNacional(): Promise<SportsData["nacional"]> {
   const key = process.env.API_FOOTBALL_KEY;
@@ -108,62 +157,27 @@ async function fetchNacional(): Promise<SportsData["nacional"]> {
 
   const headers = { "x-apisports-key": key };
 
-  const [lastRes, nextRes, standRes] = await Promise.allSettled([
-    fetch(`${FOOTBALL_API_BASE}/fixtures?team=${NACIONAL_TEAM_ID}&last=1`, { headers, next: { revalidate: 0 } }),
-    fetch(`${FOOTBALL_API_BASE}/fixtures?team=${NACIONAL_TEAM_ID}&next=1`, { headers, next: { revalidate: 0 } }),
+  // Try Liga Betplay first (fixtures scoped to league so Copa Lib fallback is meaningful)
+  const [lr, nr, sr] = await Promise.allSettled([
+    fetch(`${FOOTBALL_API_BASE}/fixtures?team=${NACIONAL_TEAM_ID}&league=${LIGA_BETPLAY_ID}&last=1`, { headers, next: { revalidate: 0 } }),
+    fetch(`${FOOTBALL_API_BASE}/fixtures?team=${NACIONAL_TEAM_ID}&league=${LIGA_BETPLAY_ID}&next=1`, { headers, next: { revalidate: 0 } }),
     fetch(`${FOOTBALL_API_BASE}/standings?team=${NACIONAL_TEAM_ID}&season=2025&league=${LIGA_BETPLAY_ID}`, { headers, next: { revalidate: 0 } }),
   ]);
 
-  let lastMatch: MatchResult | null = null;
-  if (lastRes.status === "fulfilled" && lastRes.value.ok) {
-    const d = await lastRes.value.json();
-    const f = d.response?.[0];
-    if (f) {
-      lastMatch = {
-        homeTeam:  f.teams.home.name,
-        awayTeam:  f.teams.away.name,
-        homeScore: f.goals.home ?? 0,
-        awayScore: f.goals.away ?? 0,
-        date:      f.fixture.date,
-        competition: f.league.name,
-      };
-    }
-  }
+  let lastMatch = await parseFixture(lr);
+  let nextMatch = await parseUpcoming(nr);
+  let standing  = await parseNacionalStanding(sr, "Liga BetPlay");
 
-  let nextMatch: UpcomingMatch | null = null;
-  if (nextRes.status === "fulfilled" && nextRes.value.ok) {
-    const d = await nextRes.value.json();
-    const f = d.response?.[0];
-    if (f) {
-      const { date, time } = formatMatchTime(f.fixture.date);
-      nextMatch = {
-        homeTeam:    f.teams.home.name,
-        awayTeam:    f.teams.away.name,
-        date,
-        time,
-        venue:       f.fixture.venue?.name ?? "",
-        competition: f.league.name,
-      };
-    }
-  }
-
-  let standing: Standing | null = null;
-  if (standRes.status === "fulfilled" && standRes.value.ok) {
-    const d = await standRes.value.json();
-    const s = d.response?.[0]?.league?.standings?.[0]?.find(
-      (t: Record<string, unknown>) => (t.team as Record<string, unknown>)?.id === NACIONAL_TEAM_ID
-    );
-    if (s) {
-      standing = {
-        position: s.rank,
-        points:   s.points,
-        played:   s.all?.played ?? 0,
-        won:      s.all?.win ?? 0,
-        drawn:    s.all?.draw ?? 0,
-        lost:     s.all?.lose ?? 0,
-        league:   "Liga BetPlay",
-      };
-    }
+  // Copa Libertadores fallback — runs only when Liga Betplay has no data
+  if (!lastMatch || !nextMatch || !standing) {
+    const [clr, cnr, csr] = await Promise.allSettled([
+      fetch(`${FOOTBALL_API_BASE}/fixtures?team=${NACIONAL_TEAM_ID}&league=${COPA_LIBERTADORES_ID}&last=1`, { headers, next: { revalidate: 0 } }),
+      fetch(`${FOOTBALL_API_BASE}/fixtures?team=${NACIONAL_TEAM_ID}&league=${COPA_LIBERTADORES_ID}&next=1`, { headers, next: { revalidate: 0 } }),
+      fetch(`${FOOTBALL_API_BASE}/standings?team=${NACIONAL_TEAM_ID}&season=2025&league=${COPA_LIBERTADORES_ID}`, { headers, next: { revalidate: 0 } }),
+    ]);
+    if (!lastMatch) lastMatch = await parseFixture(clr);
+    if (!nextMatch) nextMatch = await parseUpcoming(cnr);
+    if (!standing)  standing  = await parseNacionalStanding(csr, "Copa Libertadores");
   }
 
   return { lastMatch, nextMatch, standing, error: null };
@@ -192,7 +206,6 @@ async function fetchLakers(): Promise<SportsData["lakers"]> {
   let lastGame: GameResult | null = null;
   if (lastRes.status === "fulfilled" && lastRes.value.ok) {
     const d = await lastRes.value.json();
-    // BDL returns in ascending order — take the last one
     const games: Record<string, unknown>[] = d.data ?? [];
     const g = games[games.length - 1];
     if (g) {
@@ -246,8 +259,7 @@ async function fetchLakers(): Promise<SportsData["lakers"]> {
     }
   }
 
-  const hasError = !bdlKey ? null : null; // BDL is free tier, no error message needed
-  return { lastGame, nextGame, standing, error: hasError };
+  return { lastGame, nextGame, standing, error: null };
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────

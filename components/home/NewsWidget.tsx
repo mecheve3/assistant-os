@@ -187,6 +187,7 @@ export function NewsWidget() {
   const [news, setNews]       = useState<NewsItem[]>([]);
   const [markets, setMarkets] = useState<MarketsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [slowLoad, setSlowLoad] = useState(false);
   const [error, setError]     = useState(false);
   const [category, setCategory] = useState<Category>("all");
   const [page, setPage]       = useState(1);
@@ -220,6 +221,13 @@ export function NewsWidget() {
       if (marketsTimer.current) clearInterval(marketsTimer.current);
     };
   }, []);
+
+  // Show slow-load hint after 3s if still loading
+  useEffect(() => {
+    if (!loading) { setSlowLoad(false); return; }
+    const t = setTimeout(() => setSlowLoad(true), 3000);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   // Reset page when category changes
   useEffect(() => { setPage(1); }, [category]);
@@ -260,7 +268,16 @@ export function NewsWidget() {
 
       {/* News items */}
       <div className="divide-y divide-line/30">
-        {loading && [1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+        {loading && (
+          <>
+            {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+            {slowLoad && (
+              <p className="text-[10px] font-mono text-muted/40 text-center pb-3">
+                Loading news... (this may take a moment)
+              </p>
+            )}
+          </>
+        )}
 
         {!loading && error && (
           <p className="text-xs text-muted/50 font-mono text-center py-6">

@@ -77,7 +77,10 @@ function NacionalPanel({ data }: { data: SportsData["nacional"] | null }) {
       )}
 
       {!lastMatch && !nextMatch && !standing && (
-        <p className="text-[10px] font-mono text-muted/40">No data available.</p>
+        <div className="space-y-0.5">
+          <p className="text-[10px] font-mono text-muted/60">⏸ Off season</p>
+          <p className="text-[9px] font-mono text-muted/35">Next season updates will appear here automatically</p>
+        </div>
       )}
     </div>
   );
@@ -139,7 +142,10 @@ function LakersPanel({ data }: { data: SportsData["lakers"] | null }) {
       )}
 
       {!lastGame && !nextGame && !standing && (
-        <p className="text-[10px] font-mono text-muted/40">No data available.</p>
+        <div className="space-y-0.5">
+          <p className="text-[10px] font-mono text-muted/60">⏸ Off season</p>
+          <p className="text-[9px] font-mono text-muted/35">Next season updates will appear here automatically</p>
+        </div>
       )}
     </div>
   );

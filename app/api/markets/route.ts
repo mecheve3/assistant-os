@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const runtime   = "edge";
+export const revalidate = 300;
+
 interface CryptoItem { symbol: string; price: number; change24h: number }
 interface StockItem  { symbol: string; price: number; change24h: number }
 interface ForexItem  { pair: string; rate: number; change24h: number }
