@@ -1,7 +1,7 @@
 import { format, startOfMonth, subMonths } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { FinancesAccount, FinancesDebt, RecurringExpense } from "@/types";
-import { formatCOP } from "@/lib/utils";
+import { formatCOP, getLiveUSDtoCOP } from "@/lib/utils";
 import { FinanceTabBar } from "@/components/finances/FinanceTabBar";
 import { NetWorthBar } from "@/components/finances/NetWorthBar";
 import { MonthlyPnL } from "@/components/finances/MonthlyPnL";
@@ -22,7 +22,7 @@ const INCOME_CATEGORIES = new Set([
 ]);
 
 export default async function FinancesPage() {
-  const USD_RATE = Number(process.env.USD_TO_COP_RATE ?? "4200");
+  const USD_RATE = await getLiveUSDtoCOP();
   const today = new Date();
   const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
   const lastMonthStart = format(startOfMonth(subMonths(today, 1)), "yyyy-MM-dd");

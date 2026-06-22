@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { format, subDays, differenceInDays, parseISO } from "date-fns";
+import { getLiveUSDtoCOP } from "@/lib/utils";
 import { WeeklyReviewFlow } from "@/components/weekly-review/WeeklyReviewFlow";
 import { SyncToCalendarButton } from "@/components/shared/SyncToCalendarButton";
 
@@ -107,7 +108,7 @@ export default async function WeeklyReviewPage() {
   });
 
   // Step 4: week finances
-  const USD_RATE = Number(process.env.USD_TO_COP_RATE ?? "4200");
+  const USD_RATE = await getLiveUSDtoCOP();
   const weekIncome = (weekTransactions ?? [])
     .filter((t) => t.type === "income")
     .reduce(

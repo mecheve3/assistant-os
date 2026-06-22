@@ -15,8 +15,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "🤖 Assistant",
-  description: "Personal Command Center — Life & Work Dashboard",
+  title: "Assistant 🤖",
+  description: "Personal Operating System",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -29,6 +34,12 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#00d4aa" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Assistant" />
+      </head>
       <body className="h-full bg-base text-bright font-sans antialiased">
         <div className="flex h-full overflow-hidden">
           <Sidebar />

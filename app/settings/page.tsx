@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getLiveUSDtoCOP } from "@/lib/utils";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export default async function SettingsPage() {
     .maybeSingle();
 
   const googleConnected = !!gcToken;
-  const usdRate = process.env.USD_TO_COP_RATE ?? "4200";
+  const usdRate = (await getLiveUSDtoCOP()).toFixed(0);
 
   return (
     <div className="p-4 lg:p-6 max-w-2xl">

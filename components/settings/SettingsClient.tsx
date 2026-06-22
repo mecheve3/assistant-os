@@ -130,7 +130,7 @@ export function SettingsClient({ googleConnected, gcScope, usdRate }: Props) {
             <div>
               <p className="text-sm text-bright">USD Rate</p>
               <p className="text-[10px] font-mono text-muted/60">
-                Set via USD_TO_COP_RATE env var
+                Live rate from Frankfurter API
               </p>
             </div>
             <span className="text-[10px] font-mono text-muted bg-raised px-2 py-1 rounded">

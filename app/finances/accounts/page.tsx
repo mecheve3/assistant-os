@@ -1,13 +1,11 @@
 import { supabase } from "@/lib/supabase";
 import { FinancesAccount } from "@/types";
-import { formatCOP, formatUSD } from "@/lib/utils";
+import { formatCOP, formatUSD, getLiveUSDtoCOP } from "@/lib/utils";
 import { InlineAccountBalance } from "./InlineAccountBalance";
 import { AddAccountForm } from "./AddAccountForm";
 import { AccountDeleteButton } from "./AccountDeleteButton";
 
 export const dynamic = "force-dynamic";
-
-const USD_RATE = Number(process.env.USD_TO_COP_RATE ?? "4200");
 
 const TYPE_LABELS: Record<string, string> = {
   checking: "Checking",
@@ -25,7 +23,7 @@ const TYPE_COLOR: Record<string, string> = {
   investment: "text-teal bg-teal/10",
 };
 
-function AccountRow({ account }: { account: FinancesAccount }) {
+function AccountRow({ account, usdRate }: { account: FinancesAccount; usdRate: number }) {
   const balance =
     account.currency === "COP"
       ? formatCOP(account.current_balance)
@@ -60,7 +58,7 @@ function AccountRow({ account }: { account: FinancesAccount }) {
         </p>
         {account.currency === "USD" && (
           <p className="text-[10px] font-mono text-muted/60">
-            ~{formatCOP(account.current_balance * USD_RATE)}
+            ~{formatCOP(account.current_balance * usdRate)}
           </p>
         )}
       </div>
@@ -70,10 +68,10 @@ function AccountRow({ account }: { account: FinancesAccount }) {
 }
 
 export default async function AccountsPage() {
-  const { data: accounts } = await supabase
-    .from("finances_accounts")
-    .select("*")
-    .order("name");
+  const [{ data: accounts }, usdRate] = await Promise.all([
+    supabase.from("finances_accounts").select("*").order("name"),
+    getLiveUSDtoCOP(),
+  ]);
 
   const allAccounts = (accounts ?? []) as FinancesAccount[];
 
@@ -82,7 +80,7 @@ export default async function AccountsPage() {
 
   const copTotal = copAccounts.reduce((s, a) => s + a.current_balance, 0);
   const usdTotal = usdAccounts.reduce((s, a) => s + a.current_balance, 0);
-  const grandTotalCOP = copTotal + usdTotal * USD_RATE;
+  const grandTotalCOP = copTotal + usdTotal * usdRate;
 
   return (
     <div className="p-4 lg:p-6 max-w-2xl">
@@ -116,7 +114,7 @@ export default async function AccountsPage() {
         {copAccounts.length === 0 ? (
           <p className="text-xs text-muted text-center py-4">No COP accounts</p>
         ) : (
-          copAccounts.map((a) => <AccountRow key={a.id} account={a} />)
+          copAccounts.map((a) => <AccountRow key={a.id} account={a} usdRate={usdRate} />)
         )}
       </div>
 
@@ -129,14 +127,14 @@ export default async function AccountsPage() {
           <div className="text-right">
             <p className="text-xs font-mono text-bright">{formatUSD(usdTotal)}</p>
             <p className="text-[10px] font-mono text-muted/60">
-              ~{formatCOP(usdTotal * USD_RATE)}
+              ~{formatCOP(usdTotal * usdRate)}
             </p>
           </div>
         </div>
         {usdAccounts.length === 0 ? (
           <p className="text-xs text-muted text-center py-4">No USD accounts</p>
         ) : (
-          usdAccounts.map((a) => <AccountRow key={a.id} account={a} />)
+          usdAccounts.map((a) => <AccountRow key={a.id} account={a} usdRate={usdRate} />)
         )}
       </div>
 

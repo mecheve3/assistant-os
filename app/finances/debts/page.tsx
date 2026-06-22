@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { FinancesDebt } from "@/types";
+import { getLiveUSDtoCOP } from "@/lib/utils";
 import { FinanceTabBar } from "@/components/finances/FinanceTabBar";
 import { DebtCard } from "@/components/finances/DebtCard";
 import { DebtCalculator } from "@/components/finances/DebtCalculator";
@@ -8,7 +9,7 @@ import { AIDebtStrategy } from "./AIDebtStrategy";
 export const dynamic = "force-dynamic";
 
 export default async function DebtsPage() {
-  const USD_RATE = Number(process.env.USD_TO_COP_RATE ?? "4200");
+  const USD_RATE = await getLiveUSDtoCOP();
 
   const { data: debts } = await supabase
     .from("finances_debts")

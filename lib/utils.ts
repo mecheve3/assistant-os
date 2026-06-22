@@ -133,6 +133,24 @@ export function stageLabel(stage: string): string {
   return labels[stage] ?? stage;
 }
 
+// ─── Live forex ───────────────────────────────────────────────────────────────
+
+export async function getLiveUSDtoCOP(): Promise<number> {
+  try {
+    const res = await fetch(
+      "https://api.frankfurter.app/latest?from=USD&to=COP",
+      { next: { revalidate: 300 } }
+    );
+    if (!res.ok) throw new Error(`Frankfurter ${res.status}`);
+    const data = await res.json();
+    const rate = Number(data.rates?.COP ?? 0);
+    if (!rate) throw new Error("no COP rate");
+    return rate;
+  } catch {
+    return Number(process.env.USD_TO_COP_RATE ?? "4200");
+  }
+}
+
 // ─── Greeting ─────────────────────────────────────────────────────────────────
 
 export function greeting(): string {
