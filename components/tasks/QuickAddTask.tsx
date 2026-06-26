@@ -15,21 +15,6 @@ export interface AddTaskData {
   life_area?: string | null;
 }
 
-const LIFE_AREAS = [
-  { value: "", label: "— General —" },
-  { value: "health_exercise", label: "Exercise" },
-  { value: "health_food", label: "Food" },
-  { value: "growth_learning", label: "Learning" },
-  { value: "growth_resources", label: "Resources" },
-  { value: "home_shopping", label: "Shopping" },
-  { value: "home_maintenance", label: "Home Maintenance" },
-  { value: "home_car", label: "Car" },
-  { value: "home_chores", label: "Chores" },
-  { value: "hobby_music", label: "Music" },
-  { value: "hobby_travel", label: "Travel" },
-  { value: "hobby_leisure", label: "Leisure" },
-];
-
 const PRIORITIES = [
   { value: "urgent", label: "U", title: "Urgent", color: "text-danger bg-danger/10 border-danger/30" },
   { value: "high",   label: "H", title: "High",   color: "text-warn bg-warn/10 border-warn/30" },
@@ -55,7 +40,6 @@ export function QuickAddTask({ projects, onAdd }: Props) {
   const [priority, setPriority] = useState<AddTaskData["priority"]>("medium");
   const [status, setStatus] = useState<"inbox" | "today">("inbox");
   const [projectId, setProjectId] = useState("");
-  const [lifeArea, setLifeArea] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [recurring, setRecurring] = useState(false);
   const [recurrenceFrequency, setRecurrenceFrequency] = useState("daily");
@@ -75,13 +59,11 @@ export function QuickAddTask({ projects, onAdd }: Props) {
       due_date: dueDate || null,
       recurring,
       recurrence_frequency: recurring ? recurrenceFrequency : null,
-      life_area: lifeArea || null,
     });
 
     setTitle("");
     setDueDate("");
     setProjectId("");
-    setLifeArea("");
     setRecurring(false);
     setSaving(false);
   };
@@ -164,7 +146,7 @@ export function QuickAddTask({ projects, onAdd }: Props) {
 
       {showMore && (
         <div className="mt-3 pt-3 border-t border-line space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] font-mono text-muted block mb-1">Project</label>
               <select
@@ -177,18 +159,6 @@ export function QuickAddTask({ projects, onAdd }: Props) {
                   <option key={p.id} value={p.id}>
                     {p.emoji} {p.name}
                   </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-muted block mb-1">Life Area</label>
-              <select
-                value={lifeArea}
-                onChange={(e) => setLifeArea(e.target.value)}
-                className="w-full bg-raised border border-line rounded px-2 py-1.5 text-xs font-mono text-bright focus:outline-none focus:border-teal"
-              >
-                {LIFE_AREAS.map((a) => (
-                  <option key={a.value} value={a.value}>{a.label}</option>
                 ))}
               </select>
             </div>

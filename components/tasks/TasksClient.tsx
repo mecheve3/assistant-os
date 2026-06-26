@@ -14,12 +14,59 @@ function byPriority(tasks: Task[]): Task[] {
   );
 }
 
+// ─── Archived accordion ───────────────────────────────────────────────────────
+
+function ArchivedSection({
+  tasks,
+  onRestore,
+}: {
+  tasks: Task[];
+  onRestore: (task: Task) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!tasks.length) return null;
+
+  return (
+    <div className="mt-6 border border-line rounded-lg overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left bg-card hover:bg-raised/30 transition-colors"
+      >
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted">
+          Archived ({tasks.length})
+        </span>
+        <span className="text-[9px] font-mono text-muted/40">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="divide-y divide-line/30">
+          {tasks.map((task) => (
+            <div key={task.id} className="flex items-center gap-3 px-4 py-2.5">
+              <span className="text-xs text-muted/50 line-through flex-1 truncate">
+                {task.title}
+              </span>
+              <button
+                onClick={() => onRestore(task)}
+                className="text-[9px] font-mono text-teal hover:text-teal/70 shrink-0 transition-colors"
+              >
+                Restore
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── TasksClient ──────────────────────────────────────────────────────────────
+
 interface Props {
   todayTasks: Task[];
   inboxTasks: Task[];
   parkedTasks: Task[];
   doneTasks: Task[];
   choreTasks: Task[];
+  archivedTasks: Task[];
   projects: Pick<Project, "id" | "name" | "emoji">[];
   calendarConnected?: boolean;
 }
@@ -30,6 +77,7 @@ export function TasksClient({
   parkedTasks: initialParked,
   doneTasks: initialDone,
   choreTasks: initialChores,
+  archivedTasks: initialArchived,
   projects,
 }: Props) {
   const [today, setToday] = useState<Task[]>(byPriority(initialToday));
@@ -37,6 +85,7 @@ export function TasksClient({
   const [parked, setParked] = useState<Task[]>(initialParked);
   const [done, setDone] = useState<Task[]>(initialDone);
   const [chores, setChores] = useState<Task[]>(initialChores);
+  const [archived, setArchived] = useState<Task[]>(initialArchived);
 
   const addTask = useCallback(async (data: AddTaskData) => {
     const tempId = `temp-${Date.now()}`;
@@ -58,6 +107,7 @@ export function TasksClient({
       last_completed_at: null,
       next_due_date: null,
       life_area: data.life_area ?? null,
+      archived_at: null,
     };
 
     if (data.status === "today") {
@@ -103,7 +153,10 @@ export function TasksClient({
 
   const update = useCallback(async (task: Task, changes: Partial<Task>) => {
     const newStatus = (changes.status ?? task.status) as Task["status"];
-    const updatedTask = { ...task, ...changes };
+    const nowIso = new Date().toISOString();
+    const completedAtPatch =
+      changes.status === "done" && task.status !== "done" ? { completed_at: nowIso } : {};
+    const updatedTask = { ...task, ...changes, ...completedAtPatch };
     const applyToList = (list: Task[]) =>
       list.map((t) => (t.id === task.id ? updatedTask : t));
 
@@ -134,7 +187,7 @@ export function TasksClient({
       }
     }
 
-    await supabase.from("tasks").update(changes).eq("id", task.id);
+    await supabase.from("tasks").update({ ...changes, ...completedAtPatch }).eq("id", task.id);
   }, []);
 
   const destroy = useCallback(async (task: Task) => {
@@ -145,6 +198,17 @@ export function TasksClient({
     setChores((prev) => prev.filter((t) => t.id !== task.id));
     await supabase.from("tasks").delete().eq("id", task.id);
   }, []);
+
+  const restore = useCallback(async (task: Task) => {
+    setArchived((prev) => prev.filter((t) => t.id !== task.id));
+    await supabase
+      .from("tasks")
+      .update({ status: "today", archived_at: null })
+      .eq("id", task.id);
+  }, []);
+
+  // suppress unused var warning for chores (kept for future use)
+  void chores;
 
   return (
     <>
@@ -160,6 +224,8 @@ export function TasksClient({
           onDestroy={destroy}
         />
       </div>
+
+      <ArchivedSection tasks={archived} onRestore={restore} />
     </>
   );
 }

@@ -53,20 +53,32 @@ export function EnhancedHabits({
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set(initialSkippedIds));
   const [toggling, setToggling] = useState<Set<string>>(new Set());
 
-  // Re-fetch today's skips on mount to catch any that didn't arrive via SSR
+  // Re-fetch today's logs + skips on mount to catch state not delivered via SSR
   useEffect(() => {
+    // Refresh completed logs
+    supabase
+      .from("habit_logs")
+      .select("*")
+      .eq("date", today)
+      .then(({ data, error }) => {
+        if (error) { console.error("[habit_logs] mount fetch error:", error); return; }
+        console.log("[habit_logs] mount fetch:", data?.length ?? 0, "logs for", today);
+        if (data) {
+          setLogs((prev) => [
+            ...prev.filter((l) => l.date !== today),
+            ...(data as HabitLog[]),
+          ]);
+        }
+      });
+
+    // Refresh skipped IDs
     supabase
       .from("habit_skips")
       .select("habit_id")
       .eq("date", today)
       .then(({ data, error }) => {
-        if (error) {
-          console.error("[habit_skips] fetch error:", error);
-          return;
-        }
-        if (data) {
-          setSkippedIds(new Set(data.map((r: { habit_id: string }) => r.habit_id)));
-        }
+        if (error) { console.error("[habit_skips] fetch error:", error); return; }
+        if (data) setSkippedIds(new Set(data.map((r: { habit_id: string }) => r.habit_id)));
       });
   }, [today]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -269,23 +281,23 @@ export function EnhancedHabits({
                 {habit.name}
               </span>
 
-              {/* Variable habit: ✕ removes the log for today */}
+              {/* Variable habit: ✕ removes the log for today — desktop hover only */}
               {isVariable && !done && (
                 <button
                   onClick={() => removeVariableToday(habit)}
                   title="Remove from today"
-                  className="opacity-0 group-hover:opacity-100 text-muted/40 hover:text-danger transition-all shrink-0"
+                  className="hidden lg:block lg:opacity-0 lg:group-hover:opacity-100 text-muted/40 hover:text-danger transition-all shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>
               )}
 
-              {/* Fixed habit: ✕ skips for today (only when not done) */}
+              {/* Fixed habit: ✕ skips for today — desktop hover only */}
               {!isVariable && !done && (
                 <button
                   onClick={() => skipForToday(habit)}
                   title="Skip today"
-                  className="opacity-0 group-hover:opacity-100 text-muted/40 hover:text-muted transition-all shrink-0"
+                  className="hidden lg:block lg:opacity-0 lg:group-hover:opacity-100 text-muted/40 hover:text-muted transition-all shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>

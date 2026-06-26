@@ -64,6 +64,8 @@ export interface Task {
   next_due_date: string | null;
   // Life area
   life_area: string | null;
+  // Archive
+  archived_at: string | null;
 }
 
 // ─── Habits ──────────────────────────────────────────────────────────────────

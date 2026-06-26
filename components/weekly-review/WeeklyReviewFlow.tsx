@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { format, startOfWeek } from "date-fns";
-import { formatCOP } from "@/lib/utils";
 
 interface ReviewContext {
   habitCompletionPct: number;
@@ -32,24 +31,37 @@ interface AISummary {
   one_thing: string;
 }
 
-const STEP_LABELS = ["Wins", "Blockers", "Projects", "Finances", "Decisions", "Summary"];
+interface ConvMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// Steps: 1=Wins, 2=Blockers, 3=Projects, 4=Decisions, 5=Summary (Finance removed)
+const STEP_LABELS = ["Wins", "Blockers", "Projects", "Decisions", "Summary"];
+const TOTAL_STEPS = 5;
 
 export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 
+  const [step, setStep] = useState(1);
   const [wins, setWins] = useState("");
   const [blockers, setBlockers] = useState("");
   const [projectDecisions, setProjectDecisions] = useState<
     Record<string, "active" | "pause" | "kill">
   >({});
-  const [financeNotes, setFinanceNotes] = useState("");
   const [decisions, setDecisions] = useState("");
   const [focusAreas, setFocusAreas] = useState(["", "", ""]);
   const [cogLoad, setCogLoad] = useState(5);
   const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Conversation thread
+  const [convMessages, setConvMessages] = useState<ConvMessage[]>([]);
+  const [convInput, setConvInput] = useState("");
+  const [convTyping, setConvTyping] = useState(false);
+  const convEndRef = useRef<HTMLDivElement>(null);
 
   const stalledProjects = context.projects.filter(
     (p) =>
@@ -58,6 +70,26 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
   );
   const allStalledDecided = stalledProjects.every((p) => projectDecisions[p.id]);
   const canGoNext = step !== 3 || stalledProjects.length === 0 || allStalledDecided;
+
+  // Load existing conversation when reaching the summary step
+  useEffect(() => {
+    if (step !== TOTAL_STEPS) return;
+    supabase
+      .from("weekly_review_conversations")
+      .select("role, content")
+      .eq("week_start_date", weekStart)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        if (data?.length) {
+          setConvMessages(data as ConvMessage[]);
+        }
+      });
+  }, [step, weekStart]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    convEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [convMessages]);
 
   const handleProjectDecision = async (
     projectId: string,
@@ -77,7 +109,6 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
     const ctx = {
       wins,
       blockers,
-      financeNotes,
       decisions,
       focusAreas: focusAreas.filter(Boolean),
       cogLoadForecast: cogLoad,
@@ -85,9 +116,6 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
         habitCompletionPct: context.habitCompletionPct,
         tasksCompleted: context.tasksCompletedCount,
         projectsUpdated: context.projectsUpdatedCount,
-        weekIncome: context.weekIncome,
-        weekExpenses: context.weekExpenses,
-        weekNet: context.weekIncome - context.weekExpenses,
         projectDecisions,
       },
     };
@@ -97,18 +125,14 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
       body: JSON.stringify({ task: "weekly_review", context: ctx }),
     });
     const data = await res.json();
-    console.log("[weekly-review] AI response:", JSON.stringify(data).slice(0, 600));
-    if (data.result && data.result.summary) {
+    if (data.result?.summary) {
       setAiSummary(data.result as AISummary);
-    } else if (data.result?.raw) {
-      console.warn("[weekly-review] AI returned raw (JSON parse failed):", data.result.raw.slice(0, 300));
     }
     setAiLoading(false);
   };
 
   const saveReview = async () => {
     setSaving(true);
-    const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
     await supabase.from("weekly_reviews").upsert(
       {
         week_start_date: weekStart,
@@ -123,13 +147,61 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
           .join(", "),
         next_week_focus: focusAreas.filter(Boolean).join("\n"),
         habits_score: context.habitCompletionPct,
-        finances_summary: financeNotes,
+        finances_summary: null,
         ai_insights: aiSummary ? JSON.stringify(aiSummary) : null,
       },
       { onConflict: "week_start_date" }
     );
     setSaving(false);
     router.push("/?reviewed=true");
+  };
+
+  const sendConvMessage = async () => {
+    const text = convInput.trim();
+    if (!text || convTyping) return;
+    setConvInput("");
+
+    const userMsg: ConvMessage = { role: "user", content: text };
+    setConvMessages((prev) => [...prev, userMsg]);
+    setConvTyping(true);
+
+    await supabase.from("weekly_review_conversations").insert({
+      week_start_date: weekStart,
+      role: "user",
+      content: text,
+    });
+
+    const weeklyContext = {
+      wins,
+      blockers,
+      decisions,
+      focusAreas: focusAreas.filter(Boolean),
+      aiSummary,
+    };
+
+    const res = await fetch("/api/ai-analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        task: "weekly_review",
+        conversationMode: true,
+        messages: convMessages,
+        userMessage: text,
+        weeklyContext,
+      }),
+    });
+    const data = await res.json();
+    const reply = data.reply ?? "I couldn't respond right now. Try again.";
+
+    const assistantMsg: ConvMessage = { role: "assistant", content: reply };
+    setConvMessages((prev) => [...prev, assistantMsg]);
+    setConvTyping(false);
+
+    await supabase.from("weekly_review_conversations").insert({
+      week_start_date: weekStart,
+      role: "assistant",
+      content: reply,
+    });
   };
 
   const TA =
@@ -140,7 +212,9 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
       {/* Progress bar */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-mono text-muted">STEP {step} OF 6</span>
+          <span className="text-[10px] font-mono text-muted">
+            STEP {step} OF {TOTAL_STEPS}
+          </span>
           <span className="text-[10px] font-mono text-muted">
             {STEP_LABELS[step - 1].toUpperCase()}
           </span>
@@ -148,7 +222,7 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
         <div className="h-1 bg-raised rounded-full overflow-hidden">
           <div
             className="h-full bg-teal rounded-full transition-all duration-300"
-            style={{ width: `${(step / 6) * 100}%` }}
+            style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
           />
         </div>
       </div>
@@ -166,42 +240,10 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
                 Wins, breakthroughs, shipped things, personal victories.
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-3 p-4 bg-raised rounded-lg">
-              <div className="text-center">
-                <p
-                  className={`text-2xl font-mono font-bold ${
-                    context.habitCompletionPct >= 80
-                      ? "text-teal"
-                      : context.habitCompletionPct >= 50
-                      ? "text-warn"
-                      : "text-danger"
-                  }`}
-                >
-                  {context.habitCompletionPct}%
-                </p>
-                <p className="text-[9px] font-mono text-muted/60 mt-0.5">Habits done</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-mono font-bold text-bright">
-                  {context.tasksCompletedCount}
-                </p>
-                <p className="text-[9px] font-mono text-muted/60 mt-0.5">Tasks closed</p>
-              </div>
-              <div className="text-center">
-                <p
-                  className={`text-2xl font-mono font-bold ${
-                    context.projectsUpdatedCount > 0 ? "text-teal" : "text-muted"
-                  }`}
-                >
-                  {context.projectsUpdatedCount}
-                </p>
-                <p className="text-[9px] font-mono text-muted/60 mt-0.5">Projects active</p>
-              </div>
-            </div>
             <textarea
               value={wins}
               onChange={(e) => setWins(e.target.value)}
-              rows={4}
+              rows={6}
               placeholder="List your wins — big and small…"
               className={TA}
               autoFocus
@@ -262,9 +304,7 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
               </p>
             </div>
             {context.projects.length === 0 ? (
-              <p className="text-sm text-muted/50 text-center py-6">
-                No projects to review.
-              </p>
+              <p className="text-sm text-muted/50 text-center py-6">No projects to review.</p>
             ) : (
               <div className="space-y-2">
                 {context.projects.map((p) => {
@@ -345,63 +385,8 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
           </div>
         )}
 
-        {/* ── Step 4: Finances ── */}
+        {/* ── Step 4: Decisions & Focus ── */}
         {step === 4 && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-base font-semibold text-bright mb-1">Finance Check</h2>
-              <p className="text-[10px] font-mono text-muted">How was your financial week?</p>
-            </div>
-            <div className="grid grid-cols-3 gap-3 p-4 bg-raised rounded-lg">
-              <div className="text-center">
-                <p className="text-sm font-mono font-bold text-teal">
-                  {formatCOP(context.weekIncome)}
-                </p>
-                <p className="text-[9px] font-mono text-muted/60 mt-0.5">Income</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-mono font-bold text-danger">
-                  {formatCOP(context.weekExpenses)}
-                </p>
-                <p className="text-[9px] font-mono text-muted/60 mt-0.5">Expenses</p>
-              </div>
-              <div className="text-center">
-                <p
-                  className={`text-sm font-mono font-bold ${
-                    context.weekIncome - context.weekExpenses >= 0 ? "text-teal" : "text-danger"
-                  }`}
-                >
-                  {formatCOP(context.weekIncome - context.weekExpenses)}
-                </p>
-                <p className="text-[9px] font-mono text-muted/60 mt-0.5">Net</p>
-              </div>
-            </div>
-            {context.debtBalances.length > 0 && (
-              <div className="p-3 bg-raised rounded-lg space-y-1.5">
-                <p className="text-[9px] font-mono uppercase text-muted/60 mb-1">Current Debt</p>
-                {context.debtBalances.map((d) => (
-                  <div key={d.name} className="flex items-center justify-between">
-                    <span className="text-xs text-muted">{d.name}</span>
-                    <span className="text-xs font-mono text-danger">
-                      {d.current_balance.toLocaleString()} {d.currency}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <textarea
-              value={financeNotes}
-              onChange={(e) => setFinanceNotes(e.target.value)}
-              rows={3}
-              placeholder="Financial notes or decisions this week…"
-              className={TA}
-              autoFocus
-            />
-          </div>
-        )}
-
-        {/* ── Step 5: Decisions & Focus ── */}
-        {step === 5 && (
           <div className="space-y-4">
             <div>
               <h2 className="text-base font-semibold text-bright mb-1">Decisions & Focus</h2>
@@ -466,8 +451,8 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
           </div>
         )}
 
-        {/* ── Step 6: AI Summary ── */}
-        {step === 6 && (
+        {/* ── Step 5: AI Summary + Conversation ── */}
+        {step === 5 && (
           <div className="space-y-5">
             <div>
               <h2 className="text-base font-semibold text-bright mb-1">AI Weekly Summary</h2>
@@ -540,6 +525,65 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
                   </div>
                 )}
 
+                {/* ── Conversation thread ── */}
+                <div className="border border-line rounded-lg overflow-hidden">
+                  <div className="px-3 py-2 bg-raised/40 border-b border-line">
+                    <p className="text-[9px] font-mono uppercase text-muted/60">
+                      Ask a follow-up about your week
+                    </p>
+                  </div>
+
+                  {convMessages.length > 0 && (
+                    <div className="max-h-64 overflow-y-auto p-3 space-y-3">
+                      {convMessages.map((m, i) => (
+                        <div
+                          key={i}
+                          className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                        >
+                          <div
+                            className={`max-w-[85%] px-3 py-2 rounded-lg text-xs leading-relaxed ${
+                              m.role === "user"
+                                ? "bg-teal/15 text-bright"
+                                : "bg-raised text-muted border border-line/60"
+                            }`}
+                          >
+                            {m.role === "assistant" && (
+                              <span className="text-[9px] font-mono text-ai/70 block mb-1">◆</span>
+                            )}
+                            {m.content}
+                          </div>
+                        </div>
+                      ))}
+                      {convTyping && (
+                        <div className="flex justify-start">
+                          <div className="bg-raised border border-line/60 px-3 py-2 rounded-lg">
+                            <span className="text-[10px] font-mono text-ai/60">◆ thinking…</span>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={convEndRef} />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 p-2 border-t border-line/40">
+                    <input
+                      type="text"
+                      value={convInput}
+                      onChange={(e) => setConvInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendConvMessage(); } }}
+                      placeholder="Ask a follow-up about your week…"
+                      className="flex-1 bg-transparent text-xs text-bright placeholder:text-muted/40 focus:outline-none px-1"
+                    />
+                    <button
+                      onClick={sendConvMessage}
+                      disabled={!convInput.trim() || convTyping}
+                      className="text-[10px] font-mono text-teal hover:text-teal/70 disabled:opacity-30 transition-colors px-2 py-1 shrink-0"
+                    >
+                      Send →
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   onClick={saveReview}
                   disabled={saving}
@@ -564,11 +608,9 @@ export function WeeklyReviewFlow({ context }: { context: ReviewContext }) {
               ← Back
             </button>
           )}
-          {step < 6 && (
+          {step < TOTAL_STEPS && (
             <button
-              onClick={() => {
-                if (canGoNext) setStep((s) => s + 1);
-              }}
+              onClick={() => { if (canGoNext) setStep((s) => s + 1); }}
               disabled={!canGoNext}
               className="px-6 py-2 bg-teal/10 border border-teal/20 text-teal text-[10px] font-mono rounded hover:bg-teal/20 transition-colors disabled:opacity-40"
             >

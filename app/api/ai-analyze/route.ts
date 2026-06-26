@@ -58,6 +58,27 @@ Return ONLY valid JSON: {"stressful_months": [{"month": "Month name", "extra_cos
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Conversation mode: used by weekly review follow-up thread
+    if (body.conversationMode && body.task === "weekly_review") {
+      const { messages, userMessage, weeklyContext } = body as {
+        messages: { role: "user" | "assistant"; content: string }[];
+        userMessage: string;
+        weeklyContext: unknown;
+      };
+      const reply = await client.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 300,
+        system: `${TASK_PROMPTS.weekly_review}\n\nWeekly review data: ${JSON.stringify(weeklyContext)}`,
+        messages: [
+          ...messages.map((m) => ({ role: m.role, content: m.content })),
+          { role: "user" as const, content: userMessage },
+        ],
+      });
+      const text = reply.content[0].type === "text" ? reply.content[0].text : "";
+      return NextResponse.json({ reply: text });
+    }
+
     const { task, context } = body as {
       task: keyof typeof TASK_PROMPTS;
       context: unknown;

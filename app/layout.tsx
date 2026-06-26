@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: "Assistant 🤖",
   description: "Personal Operating System",
   icons: {
-    icon: "/icon.svg",
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     apple: "/icon.svg",
   },
   manifest: "/manifest.json",

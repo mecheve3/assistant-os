@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Task, Project } from "@/types";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { TasksClient } from "@/components/tasks/TasksClient";
 import { SyncToCalendarButton } from "@/components/shared/SyncToCalendarButton";
 
@@ -33,7 +33,6 @@ function shouldRegenerateToday(
 export default async function TasksPage() {
   const today = format(new Date(), "yyyy-MM-dd");
   const dow = new Date().getDay();
-  const weekAgo = subDays(new Date(), 7).toISOString();
 
   // Regenerate recurring tasks that were completed before today
   const { data: doneRecurring } = await supabase
@@ -54,6 +53,37 @@ export default async function TasksPage() {
       .from("tasks")
       .update({ status: "today", completed_at: null })
       .in("id", toRegen.map((t) => t.id));
+  }
+
+  // Fix 6: Auto-archive done tasks older than 24 hours
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: toArchive } = await supabase
+    .from("tasks")
+    .select("id")
+    .eq("status", "done")
+    .is("archived_at", null)
+    .lt("updated_at", twentyFourHoursAgo);
+
+  if ((toArchive ?? []).length > 0) {
+    await supabase
+      .from("tasks")
+      .update({ archived_at: new Date().toISOString() })
+      .in("id", (toArchive ?? []).map((t: { id: string }) => t.id));
+  }
+
+  // Fix 7: Auto-promote overdue inbox tasks to Today
+  const { data: overdueInbox } = await supabase
+    .from("tasks")
+    .select("id")
+    .eq("status", "inbox")
+    .lte("due_date", today)
+    .is("archived_at", null);
+
+  if ((overdueInbox ?? []).length > 0) {
+    await supabase
+      .from("tasks")
+      .update({ status: "today" })
+      .in("id", (overdueInbox ?? []).map((t: { id: string }) => t.id));
   }
 
   // Check Google Calendar connection
@@ -80,25 +110,33 @@ export default async function TasksPage() {
       .in("id", (dueChores ?? []).map((t) => t.id));
   }
 
-  // Fetch all active tasks + recent done
-  const [{ data: openTasks }, { data: doneTasks }, { data: projects }] = await Promise.all([
+  // Fetch all active tasks + recent done (non-archived) + archived
+  const [{ data: openTasks }, { data: doneTasks }, { data: archivedTasks }, { data: projects }] = await Promise.all([
     supabase
       .from("tasks")
       .select("*")
       .in("status", ["inbox", "today", "in_progress", "parked"])
+      .is("archived_at", null)
       .order("created_at", { ascending: false }),
     supabase
       .from("tasks")
       .select("*")
       .eq("status", "done")
-      .gte("completed_at", weekAgo)
+      .is("archived_at", null)
       .order("completed_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("tasks")
+      .select("*")
+      .not("archived_at", "is", null)
+      .order("archived_at", { ascending: false })
       .limit(50),
     supabase.from("projects").select("id,name,emoji").order("name"),
   ]);
 
   const allOpen = (openTasks ?? []) as Task[];
   const allDone = (doneTasks ?? []) as Task[];
+  const allArchived = (archivedTasks ?? []) as Task[];
   const allProjects = (projects ?? []) as Pick<Project, "id" | "name" | "emoji">[];
 
   const todayTasks = allOpen.filter(
@@ -126,6 +164,7 @@ export default async function TasksPage() {
         parkedTasks={parkedTasks}
         doneTasks={allDone}
         choreTasks={choreTasks}
+        archivedTasks={allArchived}
         projects={allProjects}
         calendarConnected={calendarConnected}
       />

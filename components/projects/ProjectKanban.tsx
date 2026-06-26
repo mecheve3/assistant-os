@@ -475,6 +475,7 @@ export function ProjectKanban({ projectId, initialTasks }: Props) {
         last_completed_at: null,
         next_due_date: null,
         life_area: null,
+        archived_at: null,
       };
 
       setTaskMap((prev) => new Map(prev).set(tempId, optimistic));

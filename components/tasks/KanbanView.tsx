@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -355,6 +355,21 @@ export function KanbanView({
   }));
 
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Sync from parent when tasks change externally (optimistic QuickAdd, temp→real ID swap, etc.)
+  useEffect(() => {
+    setTaskMap(() => {
+      const m = new Map<string, Task>();
+      [...inboxTasks, ...todayTasks, ...doneTasks].forEach((t) => m.set(t.id, t));
+      return m;
+    });
+    setColumnTasks({
+      inbox:       inboxTasks.map((t) => t.id),
+      today:       todayTasks.filter((t) => t.status === "today").map((t) => t.id),
+      in_progress: todayTasks.filter((t) => t.status === "in_progress").map((t) => t.id),
+      done:        doneTasks.map((t) => t.id),
+    });
+  }, [inboxTasks, todayTasks, doneTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })

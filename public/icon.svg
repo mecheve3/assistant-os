@@ -1,4 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="80" fill="#0a0a0f"/>
-  <text x="256" y="340" font-size="300" text-anchor="middle" font-family="serif">🤖</text>
+  <rect width="512" height="512" rx="100" fill="#0a0a0f"/>
+  <rect x="156" y="80" width="200" height="160" rx="40" fill="#00d4aa"/>
+  <circle cx="196" cy="150" r="25" fill="#0a0a0f"/>
+  <circle cx="316" cy="150" r="25" fill="#0a0a0f"/>
+  <rect x="196" y="195" width="120" height="20" rx="10" fill="#0a0a0f"/>
+  <rect x="236" y="55" width="40" height="30" rx="8" fill="#00d4aa"/>
+  <circle cx="256" cy="50" r="12" fill="#00d4aa"/>
+  <rect x="116" y="130" width="40" height="60" rx="12" fill="#00d4aa"/>
+  <rect x="356" y="130" width="40" height="60" rx="12" fill="#00d4aa"/>
+  <rect x="156" y="260" width="80" height="120" rx="20" fill="#00d4aa"/>
+  <rect x="276" y="260" width="80" height="120" rx="20" fill="#00d4aa"/>
+  <rect x="176" y="380" width="160" height="40" rx="15" fill="#1a1a24"/>
 </svg>
