@@ -40,7 +40,8 @@ export function formatDateShort(dateStr: string): string {
 }
 
 export function todayISO(): string {
-  return format(new Date(), "yyyy-MM-dd");
+  // Always return the date in Bogotá time (UTC-5, no DST) — avoids habit reset at midnight UTC
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Bogota" });
 }
 
 export function getDaysSince(dateStr: string): number {

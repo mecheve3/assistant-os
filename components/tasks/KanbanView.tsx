@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -346,37 +346,23 @@ export function KanbanView({
   onUpdate,
   onDestroy,
 }: Props) {
-  const allTasks = [...inboxTasks, ...todayTasks, ...doneTasks];
-
-  const [taskMap, setTaskMap] = useState<Map<string, Task>>(() => {
-    const m = new Map<string, Task>();
-    allTasks.forEach((t) => m.set(t.id, t));
-    return m;
-  });
-
-  const [columnTasks, setColumnTasks] = useState<Record<ColumnId, string[]>>(() => ({
-    inbox: inboxTasks.map((t) => t.id),
-    today: todayTasks.filter((t) => t.status === "today").map((t) => t.id),
-    in_progress: todayTasks.filter((t) => t.status === "in_progress").map((t) => t.id),
-    done: doneTasks.map((t) => t.id),
-  }));
-
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Sync from parent when tasks change externally (optimistic QuickAdd, temp→real ID swap, etc.)
-  useEffect(() => {
-    setTaskMap(() => {
-      const m = new Map<string, Task>();
-      [...inboxTasks, ...todayTasks, ...doneTasks].forEach((t) => m.set(t.id, t));
-      return m;
-    });
-    setColumnTasks({
-      inbox:       inboxTasks.map((t) => t.id),
-      today:       todayTasks.filter((t) => t.status === "today").map((t) => t.id),
-      in_progress: todayTasks.filter((t) => t.status === "in_progress").map((t) => t.id),
-      done:        doneTasks.map((t) => t.id),
-    });
+  // Derive taskMap and columnTasks directly from props via useMemo.
+  // This means any prop change (add, edit, delete, drag) reflects on the SAME render
+  // — no useEffect delay, no stale local state.
+  const taskMap = useMemo(() => {
+    const m = new Map<string, Task>();
+    [...inboxTasks, ...todayTasks, ...doneTasks].forEach((t) => m.set(t.id, t));
+    return m;
   }, [inboxTasks, todayTasks, doneTasks]);
+
+  const columnTasks = useMemo<Record<ColumnId, string[]>>(() => ({
+    inbox:       inboxTasks.map((t) => t.id),
+    today:       todayTasks.filter((t) => t.status === "today").map((t) => t.id),
+    in_progress: todayTasks.filter((t) => t.status === "in_progress").map((t) => t.id),
+    done:        doneTasks.map((t) => t.id),
+  }), [inboxTasks, todayTasks, doneTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -417,38 +403,14 @@ export function KanbanView({
     const task = taskMap.get(taskId);
     if (!task) return;
 
-    const newStatus = COL_TO_STATUS[toCol];
-
-    setColumnTasks((prev) => ({
-      ...prev,
-      [fromCol]: prev[fromCol].filter((id) => id !== taskId),
-      [toCol!]: [taskId, ...prev[toCol!]],
-    }));
-    setTaskMap((prev) => {
-      const next = new Map(prev);
-      next.set(taskId, { ...task, status: newStatus });
-      return next;
-    });
-
-    await onUpdate(task, { status: newStatus });
+    // onUpdate synchronously updates TasksClient state (before awaiting DB).
+    // React 18 batches all those setters with setActiveId(null) above → single render.
+    await onUpdate(task, { status: COL_TO_STATUS[toCol] });
   };
 
-  // Remove task from local state after delete
   const handleDestroy = useCallback(async (task: Task) => {
-    const col = findColumn(task.id);
-    if (col) {
-      setColumnTasks((prev) => ({
-        ...prev,
-        [col]: prev[col].filter((id) => id !== task.id),
-      }));
-    }
-    setTaskMap((prev) => {
-      const next = new Map(prev);
-      next.delete(task.id);
-      return next;
-    });
     await onDestroy(task);
-  }, [findColumn, onDestroy]);
+  }, [onDestroy]);
 
   const activeTask = activeId ? taskMap.get(activeId) : undefined;
 

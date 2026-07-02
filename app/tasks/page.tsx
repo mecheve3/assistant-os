@@ -31,7 +31,7 @@ function shouldRegenerateToday(
 }
 
 export default async function TasksPage() {
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Bogota" });
   const dow = new Date().getDay();
 
   // Regenerate recurring tasks that were completed before today
@@ -55,12 +55,37 @@ export default async function TasksPage() {
       .in("id", toRegen.map((t) => t.id));
   }
 
-  // Fix 6: Auto-archive done tasks older than 24 hours
+  // Done chores: move to parked with next_due_date = completed_at + interval
+  const { data: doneChoresRaw } = await supabase
+    .from("tasks")
+    .select("id, completed_at, chore_interval_days")
+    .eq("is_chore", true)
+    .eq("status", "done")
+    .is("archived_at", null);
+
+  for (const chore of doneChoresRaw ?? []) {
+    const base = chore.completed_at
+      ? new Date(chore.completed_at)
+      : new Date();
+    const interval = Number(chore.chore_interval_days ?? 1);
+    const nextDue = new Date(base.getTime() + interval * 24 * 60 * 60 * 1000);
+    await supabase
+      .from("tasks")
+      .update({
+        status: "parked",
+        next_due_date: nextDue.toISOString().split("T")[0],
+        completed_at: null,
+      })
+      .eq("id", chore.id);
+  }
+
+  // Auto-archive done non-chore tasks older than 24 hours
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: toArchive } = await supabase
     .from("tasks")
     .select("id")
     .eq("status", "done")
+    .eq("is_chore", false)
     .is("archived_at", null)
     .lt("updated_at", twentyFourHoursAgo);
 
