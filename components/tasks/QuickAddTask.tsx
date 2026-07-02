@@ -44,7 +44,6 @@ export function QuickAddTask({ projects, onAdd }: Props) {
   const [recurring, setRecurring] = useState(false);
   const [recurrenceFrequency, setRecurrenceFrequency] = useState("daily");
   const [saving, setSaving] = useState(false);
-  const [showMore, setShowMore] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,16 +124,6 @@ export function QuickAddTask({ projects, onAdd }: Props) {
           </button>
         </div>
 
-        {/* More options toggle */}
-        <button
-          type="button"
-          onClick={() => setShowMore((m) => !m)}
-          className="text-muted hover:text-bright text-sm w-5 h-5 flex items-center justify-center"
-          title="More options"
-        >
-          {showMore ? "−" : "+"}
-        </button>
-
         <button
           type="submit"
           disabled={saving || !title.trim()}
@@ -144,8 +133,7 @@ export function QuickAddTask({ projects, onAdd }: Props) {
         </button>
       </div>
 
-      {showMore && (
-        <div className="mt-3 pt-3 border-t border-line space-y-3">
+      <div className="mt-3 pt-3 border-t border-line space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] font-mono text-muted block mb-1">Project</label>
@@ -201,7 +189,6 @@ export function QuickAddTask({ projects, onAdd }: Props) {
             )}
           </div>
         </div>
-      )}
     </form>
   );
 }

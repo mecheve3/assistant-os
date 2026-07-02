@@ -139,12 +139,13 @@ export default async function TasksPage() {
   const allArchived = (archivedTasks ?? []) as Task[];
   const allProjects = (projects ?? []) as Pick<Project, "id" | "name" | "emoji">[];
 
+  // Chores that have surfaced (not parked) show in the kanban alongside regular tasks
   const todayTasks = allOpen.filter(
-    (t) => (t.status === "today" || t.status === "in_progress") && !t.is_chore
+    (t) => t.status === "today" || t.status === "in_progress"
   );
-  const inboxTasks = allOpen.filter((t) => t.status === "inbox" && !t.is_chore);
+  const inboxTasks = allOpen.filter((t) => t.status === "inbox");
   const parkedTasks = allOpen.filter((t) => t.status === "parked" && !t.is_chore);
-  const choreTasks = allOpen.filter((t) => t.is_chore && t.status !== "parked");
+  const choreTasks = allOpen.filter((t) => t.is_chore && t.status === "parked");
 
   return (
     <div className="p-4 lg:p-6">

@@ -286,7 +286,7 @@ export function EnhancedHabits({
                 <button
                   onClick={() => removeVariableToday(habit)}
                   title="Remove from today"
-                  className="hidden lg:block lg:opacity-0 lg:group-hover:opacity-100 text-muted/40 hover:text-danger transition-all shrink-0"
+                  className="max-lg:hidden opacity-0 group-hover:opacity-100 text-muted/40 hover:text-danger transition-all shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -297,7 +297,7 @@ export function EnhancedHabits({
                 <button
                   onClick={() => skipForToday(habit)}
                   title="Skip today"
-                  className="hidden lg:block lg:opacity-0 lg:group-hover:opacity-100 text-muted/40 hover:text-muted transition-all shrink-0"
+                  className="max-lg:hidden opacity-0 group-hover:opacity-100 text-muted/40 hover:text-muted transition-all shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>

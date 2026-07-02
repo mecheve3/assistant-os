@@ -6,7 +6,8 @@ import {
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
   PointerSensor,
   useSensor,
   useSensors,
@@ -30,6 +31,12 @@ const COLUMNS = [
 ] as const;
 
 type ColumnId = "inbox" | "today" | "in_progress" | "done";
+
+// Pointer-within first so empty columns always register; fall back to rect intersection
+function customCollision(args: Parameters<typeof pointerWithin>[0]) {
+  const pw = pointerWithin(args);
+  return pw.length > 0 ? pw : rectIntersection(args);
+}
 
 const COL_TO_STATUS: Record<ColumnId, Task["status"]> = {
   inbox: "inbox",
@@ -448,7 +455,7 @@ export function KanbanView({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={customCollision}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >

@@ -80,23 +80,47 @@ function truncate(str: string, max: number): string {
 
 function parseRSS(xml: string, feed: Feed): NewsItem[] {
   const parsed = parser.parse(xml);
-  const items: Record<string, unknown>[] =
+
+  // Standard RSS / Atom
+  const rssItems: Record<string, unknown>[] =
     parsed?.rss?.channel?.item ??
     parsed?.feed?.entry ??
     [];
 
-  return (Array.isArray(items) ? items : [items])
+  if (rssItems.length > 0 || parsed?.rss || parsed?.feed) {
+    return (Array.isArray(rssItems) ? rssItems : [rssItems])
+      .slice(0, 4)
+      .map((item) => ({
+        title:       truncate(String(item.title ?? ""), 120),
+        description: truncate(String(item.description ?? item.summary ?? ""), 120),
+        url:         String((item.link as Record<string, unknown>)?.["@_href"] ?? item.link ?? item.guid ?? ""),
+        imageUrl:    extractImage(item),
+        publishedAt: String(item.pubDate ?? item.published ?? item.updated ?? ""),
+        source:      feed.source,
+        category:    feed.category,
+        lang:        feed.lang,
+      }))
+      .filter((i) => i.title && i.url);
+  }
+
+  // Google News sitemap format (googlenews.xml)
+  const sitemapUrls: Record<string, unknown>[] = parsed?.urlset?.url ?? [];
+  return (Array.isArray(sitemapUrls) ? sitemapUrls : [sitemapUrls])
     .slice(0, 4)
-    .map((item) => ({
-      title:       truncate(String(item.title ?? ""), 120),
-      description: truncate(String(item.description ?? item.summary ?? ""), 120),
-      url:         String((item.link as Record<string, unknown>)?.["@_href"] ?? item.link ?? item.guid ?? ""),
-      imageUrl:    extractImage(item),
-      publishedAt: String(item.pubDate ?? item.published ?? item.updated ?? ""),
-      source:      feed.source,
-      category:    feed.category,
-      lang:        feed.lang,
-    }))
+    .map((u) => {
+      const news = u["news:news"] as Record<string, unknown> | undefined;
+      const img  = u["image:image"] as Record<string, unknown> | undefined;
+      return {
+        title:       truncate(String(news?.["news:title"] ?? ""), 120),
+        description: "",
+        url:         String(u.loc ?? ""),
+        imageUrl:    img ? String(img["image:loc"] ?? "") || null : null,
+        publishedAt: String(news?.["news:publication_date"] ?? ""),
+        source:      feed.source,
+        category:    feed.category,
+        lang:        feed.lang,
+      };
+    })
     .filter((i) => i.title && i.url);
 }
 
@@ -135,13 +159,23 @@ export async function GET() {
     new Promise<NewsItem[][]>((resolve) => setTimeout(() => resolve([]), 3000)),
   ]);
 
-  const items: NewsItem[] = [
+  const sorted: NewsItem[] = [
     ...primaryResults.flat(),
     ...secondaryResults.flat(),
   ].sort((a, b) => {
     const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
     const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
     return tb - ta;
+  });
+
+  // Cap sports to 3 items so they don't dominate the "All" feed
+  let sportsCount = 0;
+  const items = sorted.filter((item) => {
+    if (item.category === "sports") {
+      if (sportsCount >= 3) return false;
+      sportsCount++;
+    }
+    return true;
   });
 
   if (items.length > 0) {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { format, differenceInDays, parseISO, startOfWeek, subDays } from "date-fns";
+import { format, startOfWeek, subDays } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { todayISO, greeting, formatDateShort } from "@/lib/utils";
 import { Habit, HabitLog, Task } from "@/types";
@@ -133,18 +133,15 @@ export default async function CommandCenterPage({
     (s: { habit_id: string }) => s.habit_id
   );
 
-  const weeklyReviewOverdue =
-    !lastReview ||
-    differenceInDays(new Date(), parseISO(lastReview.week_start_date)) >= 7;
-
   const todayJS = new Date();
   const isFriday = todayJS.getDay() === 5;
-  const thisMondayStr = format(
-    startOfWeek(todayJS, { weekStartsOn: 1 }),
-    "yyyy-MM-dd"
-  );
+  const thisMondayStr = format(startOfWeek(todayJS, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const reviewDoneThisWeek = lastReview != null && lastReview.week_start_date >= thisMondayStr;
   const showFridayReviewPrompt = isFriday && !reviewDoneThisWeek;
+
+  // Overdue only when review is 2+ weeks stale — avoids false alarm on Monday after Friday review
+  const prevWeekMondayStr = format(subDays(startOfWeek(todayJS, { weekStartsOn: 1 }), 7), "yyyy-MM-dd");
+  const weeklyReviewOverdue = !lastReview || lastReview.week_start_date < prevWeekMondayStr;
 
   const topTasks = [...(tasks ?? [])]
     .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99))
