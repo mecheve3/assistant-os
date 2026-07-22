@@ -293,18 +293,18 @@ function KanbanColumn({
     <div
       ref={setNodeRef}
       className={[
-        "flex-1 min-w-[200px] bg-card border rounded-lg overflow-hidden transition-colors",
+        "flex-1 min-w-[200px] bg-card border rounded-lg flex flex-col transition-colors",
         isOver ? "border-teal/40 bg-teal/5" : "border-line",
       ].join(" ")}
     >
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-line">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-line shrink-0">
         <span className={`text-[10px] font-mono uppercase tracking-widest ${headerClass}`}>
           {label}
         </span>
         <span className="text-[10px] font-mono text-muted/60">{tasks.length}</span>
       </div>
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        <div className="p-2 space-y-2 min-h-[120px]">
+        <div className="p-2 space-y-2 flex-1 min-h-[120px]">
           {tasks.map((task) => {
             const proj = task.project_id ? projectMap.get(task.project_id) : null;
             return (

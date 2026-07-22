@@ -2,12 +2,13 @@ import { supabase } from "@/lib/supabase";
 import { Task } from "@/types";
 import { LifeAreaTaskList } from "@/components/life/LifeAreaTaskList";
 import { ShoppingListWidget } from "@/components/life/ShoppingListWidget";
+import { GroceriesWidget } from "@/components/life/GroceriesWidget";
 import { differenceInDays, parseISO } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
 export default async function ShoppingPage() {
-  const [{ data: tasks }, { data: shoppingList }, { data: lastGrocery }] = await Promise.all([
+  const [{ data: tasks }, { data: shoppingList }, { data: lastGrocery }, { data: groceryItems }] = await Promise.all([
     supabase
       .from("tasks")
       .select("*")
@@ -27,6 +28,11 @@ export default async function ShoppingPage() {
       .order("completed_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("grocery_items")
+      .select("*")
+      .order("category")
+      .order("sort_order"),
   ]);
 
   const daysSinceGrocery = lastGrocery?.completed_at
@@ -43,7 +49,7 @@ export default async function ShoppingPage() {
         <p className="text-sm text-muted mt-1">Shopping list, grocery runs, and purchase tracking.</p>
       </div>
 
-      {/* Widgets */}
+      {/* Top widgets row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {/* Grocery run status */}
         <div className="bg-card border border-line rounded-lg p-4">
@@ -62,7 +68,7 @@ export default async function ShoppingPage() {
           </p>
         </div>
 
-        {/* Shopping list */}
+        {/* Ad-hoc shopping list */}
         <ShoppingListWidget
           initialItems={
             (shoppingList ?? []) as {
@@ -70,6 +76,24 @@ export default async function ShoppingPage() {
               item: string;
               bought: boolean;
               created_at: string;
+            }[]
+          }
+        />
+      </div>
+
+      {/* Full grocery list */}
+      <div className="mb-6">
+        <GroceriesWidget
+          initialItems={
+            (groceryItems ?? []) as {
+              id: number;
+              name: string;
+              category: string;
+              category_emoji: string | null;
+              sort_order: number;
+              is_permanent: boolean;
+              is_default: boolean;
+              checked: boolean;
             }[]
           }
         />
