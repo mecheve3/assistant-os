@@ -148,7 +148,20 @@ export default async function CommandCenterPage({
     .slice(0, 5) as Task[];
 
   const quote = getDailyQuote();
-  const calendarId = process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_EMBED_ID ?? "";
+
+  const calendarIds = [
+    process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_EMBED_ID,
+    "0gei4aji3p0513df7qc5vlm4jiv9l4ds@import.calendar.google.com",
+    "hjq8h0ai6bn8a5cv0sqkc7q5p9rpjjej@import.calendar.google.com",
+    "en.usa#holiday@group.v.calendar.google.com",
+    "en.co#holiday@group.v.calendar.google.com",
+    "878ogioo72nqsns1fas1f0nhajm8rsg4@import.calendar.google.com",
+    "vagktll14fc603rfrok0iho7si5idue2@import.calendar.google.com",
+  ].filter(Boolean) as string[];
+  const calendarParams = calendarIds.map((id) => `src=${encodeURIComponent(id)}`).join("&");
+  const calendarEmbedUrl = calendarIds.length
+    ? `https://calendar.google.com/calendar/embed?${calendarParams}&ctz=America%2FBogota&mode=WEEK&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0`
+    : "";
 
   return (
     <div className="p-4 lg:p-6 min-h-full">
@@ -290,13 +303,13 @@ export default async function CommandCenterPage({
           <AIBriefingCard />
 
           {/* Google Calendar embed */}
-          {calendarId ? (
+          {calendarEmbedUrl ? (
             <div className="bg-card border border-line rounded-lg overflow-hidden">
               <p className="text-[10px] font-mono uppercase tracking-widest text-muted px-4 pt-4 pb-2">
                 Calendar
               </p>
               <iframe
-                src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calendarId)}&ctz=America%2FBogota&mode=WEEK&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0`}
+                src={calendarEmbedUrl}
                 style={{ border: 0 }}
                 width="100%"
                 height="320"

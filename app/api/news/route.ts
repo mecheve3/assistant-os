@@ -17,6 +17,7 @@ export interface NewsItem {
 
 type Feed = {
   url: string;
+  fallbackUrls?: string[];
   source: string;
   category: NewsItem["category"];
   lang: "en" | "es";
@@ -25,7 +26,16 @@ type Feed = {
 // Primary feeds — always fetched, must be reliable
 const PRIMARY_FEEDS: Feed[] = [
   { url: "https://feeds.bbci.co.uk/news/world/rss.xml", source: "BBC World",     category: "world",    lang: "en" },
-  { url: "https://www.elcolombiano.com/googlenews.xml", source: "El Colombiano", category: "colombia", lang: "es" },
+  {
+    url: "https://www.elcolombiano.com/googlenews.xml",
+    fallbackUrls: [
+      "https://www.elcolombiano.com/feed",
+      "https://www.elcolombiano.com/rss.xml",
+    ],
+    source: "El Colombiano",
+    category: "colombia",
+    lang: "es",
+  },
   { url: "https://cointelegraph.com/rss",               source: "CoinTelegraph", category: "crypto",   lang: "en" },
   { url: "https://www.espn.com/espn/rss/nba/news",      source: "ESPN NBA",      category: "sports",   lang: "en" },
 ];
@@ -124,23 +134,31 @@ function parseRSS(xml: string, feed: Feed): NewsItem[] {
     .filter((i) => i.title && i.url);
 }
 
+async function fetchUrl(url: string, feed: Feed): Promise<NewsItem[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FEED_TIMEOUT);
+  const res = await fetch(url, {
+    signal: controller.signal,
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; PersonalOS/1.0)" },
+    next: { revalidate: 0 },
+  });
+  clearTimeout(timeout);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const xml = await res.text();
+  return parseRSS(xml, feed);
+}
+
 async function fetchFeedSafe(feed: Feed): Promise<NewsItem[]> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FEED_TIMEOUT);
-    const res = await fetch(feed.url, {
-      signal: controller.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; PersonalOS/1.0)" },
-      next: { revalidate: 0 },
-    });
-    clearTimeout(timeout);
-    if (!res.ok) return [];
-    const xml = await res.text();
-    return parseRSS(xml, feed);
-  } catch {
-    console.error(`[news] Feed failed: ${feed.source}`);
-    return [];
+  const urls = [feed.url, ...(feed.fallbackUrls ?? [])];
+  for (const url of urls) {
+    try {
+      const items = await fetchUrl(url, feed);
+      if (items.length > 0) return items;
+    } catch {
+      console.error(`[news] Feed failed: ${feed.source} @ ${url}`);
+    }
   }
+  return [];
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────

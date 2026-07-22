@@ -14,6 +14,8 @@ const HABIT_ORDER = [
   "Check calendar",
   "Crypto bot report",
   "Check news",
+  "Serenno sales (morning check)",
+  "Serenno sales (afternoon check)",
   "Call mom",
   "Gym workout",
   "Protein + creatine shake",
