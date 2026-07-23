@@ -28,6 +28,7 @@ const MAX_VISIBLE = 10;
 export function AIBriefingCard() {
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const lastFetchAt = useRef(0);
@@ -63,16 +64,18 @@ export function AIBriefingCard() {
     if (now - lastFetchAt.current < RATE_LIMIT_MS) return;
     lastFetchAt.current = now;
     setLoading(true);
+    setFetchError(false);
 
     try {
       const res = await fetch("/api/ai-briefing", { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (Array.isArray(data.insights)) {
         setInsights(data.insights);
         setGeneratedAt(data.generated_at ?? null);
       }
     } catch {
-      // briefing is best-effort
+      setFetchError(true);
     } finally {
       setLoading(false);
       let remaining = Math.round(RATE_LIMIT_MS / 1000);
@@ -193,10 +196,26 @@ export function AIBriefingCard() {
         </div>
       )}
 
-      {!loading && insights.length === 0 && (
-        <p className="text-xs text-muted font-mono text-center py-4">
-          No briefing loaded — hit refresh.
-        </p>
+      {!loading && fetchError && (
+        <div className="min-h-[120px] flex flex-col items-center justify-center gap-2 py-4">
+          <p className="text-xs text-muted/60 font-mono text-center">
+            Unable to load briefing.
+          </p>
+          <button
+            onClick={() => { lastFetchAt.current = 0; loadBriefing(); }}
+            className="text-[10px] font-mono text-teal hover:underline"
+          >
+            Tap to retry →
+          </button>
+        </div>
+      )}
+
+      {!loading && !fetchError && insights.length === 0 && (
+        <div className="min-h-[120px] flex items-center justify-center">
+          <p className="text-xs text-muted font-mono text-center py-4">
+            No briefing loaded — hit refresh.
+          </p>
+        </div>
       )}
 
       {sorted.length > 0 && (

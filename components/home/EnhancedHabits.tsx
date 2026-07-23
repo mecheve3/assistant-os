@@ -283,23 +283,23 @@ export function EnhancedHabits({
                 {habit.name}
               </span>
 
-              {/* Variable habit: ✕ removes the log for today — desktop hover only */}
+              {/* Variable habit: ✕ removes the log for today */}
               {isVariable && !done && (
                 <button
                   onClick={() => removeVariableToday(habit)}
                   title="Remove from today"
-                  className="max-lg:hidden opacity-0 group-hover:opacity-100 text-muted/40 hover:text-danger transition-all shrink-0"
+                  className="max-lg:opacity-40 opacity-0 group-hover:opacity-100 text-muted/40 hover:text-danger transition-all shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>
               )}
 
-              {/* Fixed habit: ✕ skips for today — desktop hover only */}
+              {/* Fixed habit: ✕ skips for today */}
               {!isVariable && !done && (
                 <button
                   onClick={() => skipForToday(habit)}
                   title="Skip today"
-                  className="max-lg:hidden opacity-0 group-hover:opacity-100 text-muted/40 hover:text-muted transition-all shrink-0"
+                  className="max-lg:opacity-40 opacity-0 group-hover:opacity-100 text-muted/40 hover:text-muted transition-all shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>

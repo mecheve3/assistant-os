@@ -91,10 +91,10 @@ function NewsItemCard({ item }: { item: NewsItem }) {
           width={64}
           height={48}
           onError={() => setImgErr(true)}
-          className="w-16 h-12 rounded object-cover shrink-0 opacity-80"
+          className="hidden sm:block w-16 h-12 rounded object-cover shrink-0 opacity-80"
         />
       ) : (
-        <div className="w-16 h-12 rounded bg-raised shrink-0 flex items-center justify-center">
+        <div className="hidden sm:flex w-16 h-12 rounded bg-raised shrink-0 items-center justify-center">
           <span className="text-muted/30 text-xs font-mono">{item.source.slice(0, 2).toUpperCase()}</span>
         </div>
       )}

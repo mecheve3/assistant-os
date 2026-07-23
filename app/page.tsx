@@ -139,7 +139,6 @@ export default async function CommandCenterPage({
   const reviewDoneThisWeek = lastReview != null && lastReview.week_start_date >= thisMondayStr;
   const showFridayReviewPrompt = isFriday && !reviewDoneThisWeek;
 
-  // Overdue only when review is 2+ weeks stale — avoids false alarm on Monday after Friday review
   const prevWeekMondayStr = format(subDays(startOfWeek(todayJS, { weekStartsOn: 1 }), 7), "yyyy-MM-dd");
   const weeklyReviewOverdue = !lastReview || lastReview.week_start_date < prevWeekMondayStr;
 
@@ -164,7 +163,7 @@ export default async function CommandCenterPage({
     : "";
 
   return (
-    <div className="p-4 lg:p-6 min-h-full">
+    <div className="p-4 lg:p-6 min-h-full overflow-x-hidden">
       {/* Reviewed banner */}
       {reviewed === "true" && (
         <div className="mb-4 p-3 bg-teal/10 border border-teal/20 rounded-lg flex items-center gap-2">
@@ -173,12 +172,19 @@ export default async function CommandCenterPage({
         </div>
       )}
 
+      {/*
+        4-section layout using CSS grid on desktop.
+        On mobile (flex-col) the DOM order controls stacking:
+          1. [Habits + TopPriorities]  — col 1, row 1
+          2. [Review banners + AI]     — col 2, row 1
+          3. [Sports + Weather + Quote]— col 1, row 2
+          4. [Calendar + News]         — col 2, row 2
+      */}
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_2fr] gap-4 items-start">
 
-        {/* ═══ LEFT COLUMN (1/3) — Habits, Top Priorities, Sports, Weather, Quote ═══ */}
-        <div className="w-full space-y-4">
+        {/* ─── Section 1 (col 1, row 1): Habits + Top Priorities ─── */}
+        <div className="w-full min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
 
-          {/* Habits */}
           <EnhancedHabits
             initialHabits={(habits ?? []) as Habit[]}
             initialLogs={(habitLogs ?? []) as HabitLog[]}
@@ -241,27 +247,10 @@ export default async function CommandCenterPage({
               </div>
             )}
           </div>
-
-          {/* Sports */}
-          <SportsWidget />
-
-          {/* Weather */}
-          <WeatherWidget />
-
-          {/* Daily quote */}
-          <div className="bg-card border border-line rounded-lg p-4">
-            <p className="text-[10px] font-mono uppercase tracking-widest text-muted mb-3">
-              {greeting()}, Miguel
-            </p>
-            <p className="text-xs text-bright italic leading-relaxed mb-1.5">
-              &ldquo;{quote.text}&rdquo;
-            </p>
-            <p className="text-[10px] font-mono text-muted/60">— {quote.author}</p>
-          </div>
         </div>
 
-        {/* ═══ RIGHT COLUMN (2/3) — AI Briefing, Calendar, News ═══ */}
-        <div className="w-full space-y-4">
+        {/* ─── Section 2 (col 2, row 1): Review banners + AI Briefing ─── */}
+        <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-1">
 
           {/* Friday weekly review prompt */}
           {showFridayReviewPrompt && (
@@ -301,21 +290,54 @@ export default async function CommandCenterPage({
 
           {/* AI Daily Briefing */}
           <AIBriefingCard />
+        </div>
 
-          {/* Google Calendar embed */}
+        {/* ─── Section 3 (col 1, row 2): Sports + Weather + Quote ─── */}
+        <div className="w-full min-w-0 space-y-4 lg:col-start-1 lg:row-start-2">
+
+          <SportsWidget />
+
+          <WeatherWidget />
+
+          {/* Daily quote */}
+          <div className="bg-card border border-line rounded-lg p-4">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted mb-3">
+              {greeting()}, Miguel
+            </p>
+            <p className="text-xs text-bright italic leading-relaxed mb-1.5">
+              &ldquo;{quote.text}&rdquo;
+            </p>
+            <p className="text-[10px] font-mono text-muted/60">— {quote.author}</p>
+          </div>
+        </div>
+
+        {/* ─── Section 4 (col 2, row 2): Calendar + News ─── */}
+        <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-2">
+
+          {/* Google Calendar embed — double-invert for dark mode */}
           {calendarEmbedUrl ? (
             <div className="bg-card border border-line rounded-lg overflow-hidden">
               <p className="text-[10px] font-mono uppercase tracking-widest text-muted px-4 pt-4 pb-2">
                 Calendar
               </p>
-              <iframe
-                src={calendarEmbedUrl}
-                style={{ border: 0 }}
-                width="100%"
-                height="320"
-                frameBorder={0}
-                scrolling="no"
-              />
+              <div
+                style={{
+                  filter: "invert(1) hue-rotate(180deg)",
+                  borderRadius: "0 0 8px 8px",
+                  overflow: "hidden",
+                }}
+              >
+                <iframe
+                  src={calendarEmbedUrl}
+                  style={{
+                    border: 0,
+                    filter: "invert(1) hue-rotate(180deg)",
+                    display: "block",
+                  }}
+                  width="100%"
+                  className="h-[280px] lg:h-[360px]"
+                />
+              </div>
             </div>
           ) : (
             <div className="bg-card border border-line rounded-lg p-5">
