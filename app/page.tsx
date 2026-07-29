@@ -7,7 +7,6 @@ import { AIBriefingCard } from "@/components/home/AIBriefingCard";
 import { WeatherWidget } from "@/components/home/WeatherWidget";
 import { EnhancedHabits } from "@/components/home/EnhancedHabits";
 import { NewsWidget } from "@/components/home/NewsWidget";
-import { SportsWidget } from "@/components/home/SportsWidget";
 import { GoogleTasksWidget } from "@/components/home/GoogleTasksWidget";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +59,17 @@ const QUOTES: { text: string; author: string }[] = [
   { text: "Move fast. Unless you are breaking stuff, you are not moving fast enough.", author: "Mark Zuckerberg" },
   { text: "Every day you don't ship is a day your competitor might.", author: "Unknown" },
   { text: "Execution eats strategy for breakfast.", author: "Unknown" },
+  { text: "You never know how strong you are until being strong is your only choice.", author: "Bob Marley" },
+  { text: "One good thing about music, when it hits you, you feel no pain.", author: "Bob Marley" },
+  { text: "Don't gain the world and lose your soul, wisdom is better than silver or gold.", author: "Bob Marley" },
+  { text: "The greatness of a man is not in how much wealth he acquires, but in his integrity.", author: "Bob Marley" },
+  { text: "Every day the bucket a-go a well, one day the bottom a-go drop out.", author: "Bob Marley" },
+  { text: "Reality is wrong. Dreams are for real.", author: "Tupac Shakur" },
+  { text: "During your life, never stop dreaming. No one can take away your dreams.", author: "Tupac Shakur" },
+  { text: "I'm not saying I'm gonna change the world, but I guarantee that I will spark the brain that will.", author: "Tupac Shakur" },
+  { text: "For every dark night, there's a brighter day.", author: "Tupac Shakur" },
+  { text: "I know it seems hard sometimes but remember one thing — through every dark night there's a bright day after that.", author: "Tupac Shakur" },
+  { text: "Death is not the greatest loss in life. The greatest loss is what dies inside while still alive.", author: "Tupac Shakur" },
 ];
 
 function getDailyQuote(): { text: string; author: string } {
@@ -213,10 +223,8 @@ export default async function CommandCenterPage() {
           <NewsWidget />
         </div>
 
-        {/* ─── Section 3 (col 1, row 2): Sports + Weather + Quote ─── */}
+        {/* ─── Section 3 (col 1, row 2): Weather + Quote ─── */}
         <div className="w-full min-w-0 space-y-4 lg:col-start-1 lg:row-start-2">
-
-          <SportsWidget />
 
           <WeatherWidget />
 

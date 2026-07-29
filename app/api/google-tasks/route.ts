@@ -18,7 +18,8 @@ async function getValidAccessToken(): Promise<string | null> {
     .from("oauth_tokens")
     .select("access_token, refresh_token, expiry_date, scope")
     .eq("provider", "google")
-    .eq("user_id", "miguel")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (!data) return null;

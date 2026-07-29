@@ -26,21 +26,21 @@ export async function GET(req: NextRequest) {
         ? Date.now() + tokens.expires_in * 1000
         : Date.now() + 3600 * 1000; // default 1 hour
 
-    const { error: dbErr } = await supabase.from("oauth_tokens").upsert(
-      {
-        provider: "google",
-        access_token: tokens.access_token ?? null,
-        refresh_token: tokens.refresh_token ?? null,
-        expiry_date: expiryMs,
-        expires_at: expiryMs,
-        scope: tokens.scope ?? null,
-        token_type: tokens.token_type ?? null,
-        id_token: tokens.id_token ?? null,
-        user_id: "miguel",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "provider" }
-    );
+    // Delete any existing Google token first, then insert fresh — avoids
+    // onConflict column ambiguity between single-column and composite unique keys.
+    await supabase.from("oauth_tokens").delete().eq("provider", "google");
+    const { error: dbErr } = await supabase.from("oauth_tokens").insert({
+      provider: "google",
+      access_token: tokens.access_token ?? null,
+      refresh_token: tokens.refresh_token ?? null,
+      expiry_date: expiryMs,
+      expires_at: expiryMs,
+      scope: tokens.scope ?? null,
+      token_type: tokens.token_type ?? null,
+      id_token: tokens.id_token ?? null,
+      user_id: "miguel",
+      updated_at: new Date().toISOString(),
+    });
 
     if (dbErr) {
       console.error("[google-callback] DB error full:", JSON.stringify(dbErr, null, 2));
