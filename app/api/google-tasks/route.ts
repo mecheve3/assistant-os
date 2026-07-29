@@ -59,37 +59,47 @@ export async function GET() {
     return NextResponse.json({ needsAuth: true }, { status: 401 });
   }
 
-  const listsRes = await fetch(`${TASKS_BASE}/users/@me/lists?maxResults=10`, {
+  const listsRes = await fetch(`${TASKS_BASE}/users/@me/lists?maxResults=20`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!listsRes.ok) {
-    return NextResponse.json({ error: "fetch_failed" }, { status: 502 });
+    const errText = await listsRes.text().catch(() => "");
+    console.error(`[google-tasks] Lists fetch failed: ${listsRes.status} ${errText}`);
+    return NextResponse.json(
+      { error: "lists_failed", status: listsRes.status, detail: errText },
+      { status: 200 }   // return 200 so the widget can surface the error
+    );
   }
 
   const listsData = await listsRes.json();
   const lists: { id: string; title: string }[] = listsData.items ?? [];
+  console.log(`[google-tasks] Found ${lists.length} task list(s): ${lists.map((l) => l.title).join(", ")}`);
 
   const tasksByList = await Promise.all(
     lists.map(async (list) => {
       try {
         const res = await fetch(
-          `${TASKS_BASE}/lists/${list.id}/tasks?showCompleted=false&showHidden=false&maxResults=20`,
+          `${TASKS_BASE}/lists/${list.id}/tasks?showCompleted=false&maxResults=50`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
-        if (!res.ok) return { listId: list.id, list: list.title, tasks: [] };
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          console.error(`[google-tasks] Tasks fetch failed for "${list.title}": ${res.status} ${errText}`);
+          return { listId: list.id, list: list.title, tasks: [], error: `${res.status}` };
+        }
         const data = await res.json();
-        return {
-          listId: list.id,
-          list: list.title,
-          tasks: (data.items ?? []) as { id: string; title: string; due?: string }[],
-        };
-      } catch {
-        return { listId: list.id, list: list.title, tasks: [] };
+        const tasks = (data.items ?? []) as { id: string; title: string; due?: string; status?: string }[];
+        const pending = tasks.filter((t) => t.status !== "completed");
+        console.log(`[google-tasks] List "${list.title}": ${pending.length} pending tasks`);
+        return { listId: list.id, list: list.title, tasks: pending };
+      } catch (err) {
+        console.error(`[google-tasks] Exception for "${list.title}":`, err);
+        return { listId: list.id, list: list.title, tasks: [], error: "exception" };
       }
     })
   );
 
-  return NextResponse.json({ tasksByList });
+  return NextResponse.json({ tasksByList, listCount: lists.length });
 }
 
 export async function POST(req: NextRequest) {
