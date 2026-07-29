@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { format, startOfWeek, subDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { todayISO, greeting, formatDateShort } from "@/lib/utils";
 import { Habit, HabitLog, Task } from "@/types";
@@ -8,6 +8,7 @@ import { WeatherWidget } from "@/components/home/WeatherWidget";
 import { EnhancedHabits } from "@/components/home/EnhancedHabits";
 import { NewsWidget } from "@/components/home/NewsWidget";
 import { SportsWidget } from "@/components/home/SportsWidget";
+import { GoogleTasksWidget } from "@/components/home/GoogleTasksWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -90,12 +91,7 @@ const PRIORITY_ORDER: Record<string, number> = {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function CommandCenterPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ reviewed?: string }>;
-}) {
-  const { reviewed } = await searchParams;
+export default async function CommandCenterPage() {
   const today = todayISO();
   const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd");
 
@@ -104,7 +100,6 @@ export default async function CommandCenterPage({
     { data: habits },
     { data: habitLogs },
     { data: habitSkips },
-    { data: lastReview },
   ] = await Promise.all([
     supabase
       .from("tasks")
@@ -121,26 +116,11 @@ export default async function CommandCenterPage({
       .from("habit_skips")
       .select("habit_id")
       .eq("date", today),
-    supabase
-      .from("weekly_reviews")
-      .select("week_start_date")
-      .order("week_start_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
   ]);
 
   const skippedHabitIds = (habitSkips ?? []).map(
     (s: { habit_id: string }) => s.habit_id
   );
-
-  const todayJS = new Date();
-  const isFriday = todayJS.getDay() === 5;
-  const thisMondayStr = format(startOfWeek(todayJS, { weekStartsOn: 1 }), "yyyy-MM-dd");
-  const reviewDoneThisWeek = lastReview != null && lastReview.week_start_date >= thisMondayStr;
-  const showFridayReviewPrompt = isFriday && !reviewDoneThisWeek;
-
-  const prevWeekMondayStr = format(subDays(startOfWeek(todayJS, { weekStartsOn: 1 }), 7), "yyyy-MM-dd");
-  const weeklyReviewOverdue = !lastReview || lastReview.week_start_date < prevWeekMondayStr;
 
   const topTasks = [...(tasks ?? [])]
     .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99))
@@ -164,14 +144,6 @@ export default async function CommandCenterPage({
 
   return (
     <div className="p-4 lg:p-6 min-h-full overflow-x-hidden">
-      {/* Reviewed banner */}
-      {reviewed === "true" && (
-        <div className="mb-4 p-3 bg-teal/10 border border-teal/20 rounded-lg flex items-center gap-2">
-          <span className="text-teal text-sm">✓</span>
-          <p className="text-sm font-mono text-teal">Week reviewed and saved. Good work.</p>
-        </div>
-      )}
-
       {/*
         4-section layout using CSS grid on desktop.
         On mobile (flex-col) the DOM order controls stacking:
@@ -252,42 +224,6 @@ export default async function CommandCenterPage({
         {/* ─── Section 2 (col 2, row 1): Review banners + AI Briefing ─── */}
         <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-1">
 
-          {/* Friday weekly review prompt */}
-          {showFridayReviewPrompt && (
-            <Link
-              href="/weekly-review"
-              className="flex items-center gap-2 p-3 bg-warn/5 border border-warn/20 rounded-lg hover:border-warn/40 transition-colors"
-            >
-              <span className="text-base">📋</span>
-              <p className="text-sm font-mono text-warn">
-                Friday — time for your weekly review →
-              </p>
-            </Link>
-          )}
-
-          {/* Weekly review overdue warning */}
-          {weeklyReviewOverdue && !showFridayReviewPrompt && (
-            <div className="bg-card border border-warn/20 rounded-lg p-3 flex items-center gap-3">
-              <span className="text-warn">⚠</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-warn">
-                  Weekly Review Overdue
-                </p>
-                <p className="text-xs text-muted mt-0.5">
-                  {lastReview
-                    ? `Last review: week of ${lastReview.week_start_date}`
-                    : "No weekly review recorded yet."}
-                </p>
-              </div>
-              <Link
-                href="/weekly-review"
-                className="text-[10px] font-mono text-teal hover:underline shrink-0"
-              >
-                Start →
-              </Link>
-            </div>
-          )}
-
           {/* AI Daily Briefing */}
           <AIBriefingCard />
         </div>
@@ -314,6 +250,9 @@ export default async function CommandCenterPage({
         {/* ─── Section 4 (col 2, row 2): Calendar + News ─── */}
         <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-2">
 
+          {/* Google Tasks */}
+          <GoogleTasksWidget />
+
           {/* Google Calendar embed — double-invert for dark mode */}
           {calendarEmbedUrl ? (
             <div className="bg-card border border-line rounded-lg overflow-hidden">
@@ -335,7 +274,7 @@ export default async function CommandCenterPage({
                     display: "block",
                   }}
                   width="100%"
-                  className="h-[280px] lg:h-[360px]"
+                  className="h-[320px] lg:h-[420px]"
                 />
               </div>
             </div>

@@ -23,9 +23,9 @@ type Feed = {
   lang: "en" | "es";
 };
 
-// Primary feeds — always fetched, must be reliable
+// Primary feeds — always fetched in parallel, must be reliable
 const PRIMARY_FEEDS: Feed[] = [
-  { url: "https://feeds.bbci.co.uk/news/world/rss.xml", source: "BBC World",     category: "world",    lang: "en" },
+  { url: "https://feeds.bbci.co.uk/news/world/rss.xml", source: "BBC World", category: "world", lang: "en" },
   {
     url: "https://www.elcolombiano.com/googlenews.xml",
     fallbackUrls: [
@@ -36,21 +36,39 @@ const PRIMARY_FEEDS: Feed[] = [
     category: "colombia",
     lang: "es",
   },
-  { url: "https://cointelegraph.com/rss",               source: "CoinTelegraph", category: "crypto",   lang: "en" },
-  { url: "https://www.espn.com/espn/rss/nba/news",      source: "ESPN NBA",      category: "sports",   lang: "en" },
+  {
+    url: "https://www.eltiempo.com/rss/colombia.xml",
+    fallbackUrls: ["https://www.eltiempo.com/rss/portada.xml"],
+    source: "El Tiempo",
+    category: "colombia",
+    lang: "es",
+  },
+  {
+    url: "https://www.minuto30.com/feed/",
+    source: "Minuto30",
+    category: "medellin",
+    lang: "es",
+  },
+  {
+    url: "https://feeds.marketwatch.com/marketwatch/topstories/",
+    fallbackUrls: ["https://feeds.bloomberg.com/markets/news.rss"],
+    source: "MarketWatch",
+    category: "markets",
+    lang: "en",
+  },
+  { url: "https://cointelegraph.com/rss", source: "CoinTelegraph", category: "crypto", lang: "en" },
+  { url: "https://www.espn.com/espn/rss/nba/news", source: "ESPN NBA", category: "sports", lang: "en" },
 ];
 
-// Secondary feeds — raced against a 3s window after primary completes
+// Secondary feeds — raced against a 5s window after primary completes
 const SECONDARY_FEEDS: Feed[] = [
   { url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", source: "NY Times",           category: "world",    lang: "en" },
-  { url: "https://www.eltiempo.com/rss/colombia.xml",              source: "El Tiempo",          category: "colombia", lang: "es" },
   { url: "https://feeds.bloomberg.com/markets/news.rss",           source: "Bloomberg",          category: "markets",  lang: "en" },
-  { url: "https://www.espn.com/espn/rss/soccer/news",             source: "ESPN Soccer",        category: "sports",   lang: "en" },
-  { url: "https://www.as.com/rss/tags/atletico_nacional.xml",     source: "AS Colombia",        category: "sports",   lang: "es" },
-  { url: "https://www.minuto30.com/feed/",                        source: "Minuto30",           category: "medellin", lang: "es" },
-  { url: "https://www.rcnradio.com/feed",                         source: "RCN Radio",          category: "medellin", lang: "es" },
-  { url: "https://telemedellín.tv/feed/",                        source: "Telemedellín",       category: "medellin", lang: "es" },
-  { url: "https://www.eltiempo.com/rss/deportes.xml",             source: "El Tiempo Deportes", category: "sports",   lang: "es" },
+  { url: "https://www.espn.com/espn/rss/soccer/news",              source: "ESPN Soccer",        category: "sports",   lang: "en" },
+  { url: "https://www.as.com/rss/tags/atletico_nacional.xml",      source: "AS Colombia",        category: "sports",   lang: "es" },
+  { url: "https://www.telemedellin.tv/feed/",                      source: "Telemedellín",       category: "medellin", lang: "es" },
+  { url: "https://www.rcnradio.com/feed",                          source: "RCN Radio",          category: "colombia", lang: "es" },
+  { url: "https://www.eltiempo.com/rss/deportes.xml",              source: "El Tiempo Deportes", category: "sports",   lang: "es" },
 ];
 
 // ─── In-memory cache (15 min) ─────────────────────────────────────────────────
@@ -171,10 +189,10 @@ export async function GET() {
   // Primary feeds always fetched fully
   const primaryResults = await Promise.all(PRIMARY_FEEDS.map(fetchFeedSafe));
 
-  // Secondary feeds raced against a 3s window — skipped entirely if too slow
+  // Secondary feeds raced against a 5s window — skipped entirely if too slow
   const secondaryResults: NewsItem[][] = await Promise.race([
     Promise.all(SECONDARY_FEEDS.map(fetchFeedSafe)),
-    new Promise<NewsItem[][]>((resolve) => setTimeout(() => resolve([]), 3000)),
+    new Promise<NewsItem[][]>((resolve) => setTimeout(() => resolve([]), 5000)),
   ]);
 
   const sorted: NewsItem[] = [

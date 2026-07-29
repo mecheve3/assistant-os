@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   ListTodo,
-  CalendarCheck,
   Settings,
   Menu,
   X,
@@ -18,8 +17,6 @@ import {
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { differenceInDays, parseISO } from "date-fns";
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
 
@@ -76,8 +73,7 @@ const SECTIONS = [
 ];
 
 const BOTTOM_ITEMS = [
-  { href: "/weekly-review", label: "Weekly Review", icon: CalendarCheck },
-  { href: "/settings",      label: "Settings",       icon: Settings      },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -85,7 +81,6 @@ const BOTTOM_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [reviewOverdue, setReviewOverdue] = useState(false);
 
   // All sections expanded by default
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
@@ -95,20 +90,6 @@ export default function Sidebar() {
     }
     return init;
   });
-
-  useEffect(() => {
-    supabase
-      .from("weekly_reviews")
-      .select("week_start_date")
-      .order("week_start_date", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        setReviewOverdue(
-          !data || differenceInDays(new Date(), parseISO(data.week_start_date)) >= 7
-        );
-      });
-  }, []);
 
   const toggle = (key: string) =>
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -225,9 +206,6 @@ export default function Sidebar() {
             >
               <item.icon className="w-4 h-4 shrink-0" />
               <span className="truncate">{item.label}</span>
-              {item.href === "/weekly-review" && reviewOverdue && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-warn shrink-0" />
-              )}
             </Link>
           );
         })}

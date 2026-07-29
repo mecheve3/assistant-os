@@ -14,12 +14,10 @@ const HABIT_ORDER = [
   "Check calendar",
   "Crypto bot report",
   "Check news",
-  "Serenno sales (morning check)",
-  "Serenno sales (afternoon check)",
+  "Check Serenno sales",
   "Call mom",
   "Gym workout",
   "Protein + creatine shake",
-  "30 min learning block",
 ];
 
 function sortHabits(habits: Habit[]): Habit[] {
