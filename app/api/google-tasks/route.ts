@@ -65,9 +65,13 @@ export async function GET() {
   if (!listsRes.ok) {
     const errText = await listsRes.text().catch(() => "");
     console.error(`[google-tasks] Lists fetch failed: ${listsRes.status} ${errText}`);
+    // 401/403 = missing Tasks scope → send user back through re-auth
+    if (listsRes.status === 401 || listsRes.status === 403) {
+      return NextResponse.json({ needsAuth: true }, { status: 401 });
+    }
     return NextResponse.json(
-      { error: "lists_failed", status: listsRes.status, detail: errText },
-      { status: 200 }   // return 200 so the widget can surface the error
+      { error: "lists_failed", status: listsRes.status },
+      { status: 200 }
     );
   }
 

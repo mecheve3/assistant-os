@@ -37,7 +37,7 @@ async function handleConversation(body: {
 
 ${briefingSummary}
 
-You are now in conversation mode. Answer follow-up questions directly and concisely. Reference his actual projects and data when relevant. Keep responses under 80 words — this is a chat, not an essay.`,
+You are now in conversation mode. Answer follow-up questions directly and concisely. Reference his actual tasks and data when relevant. Keep responses under 80 words — this is a chat, not an essay.`,
     messages: [...history, { role: "user", content: userMessage }],
   });
 
@@ -65,19 +65,12 @@ export async function POST(request: Request) {
       .split("T")[0];
 
     const [
-      { data: projects },
-      { data: recentUpdates },
       { data: habitLogs },
       { data: habits },
       { data: todayTasks },
+      { data: inboxTasks },
       { data: debts },
     ] = await Promise.all([
-      supabase.from("projects").select("*").eq("inactive", false).order("name"),
-      supabase
-        .from("project_updates")
-        .select("*, projects(name)")
-        .gte("date", sevenDaysAgo)
-        .order("date", { ascending: false }),
       supabase
         .from("habit_logs")
         .select("*, habits(name)")
@@ -89,6 +82,13 @@ export async function POST(request: Request) {
         .select("*")
         .in("status", ["today", "in_progress"])
         .order("priority"),
+      supabase
+        .from("tasks")
+        .select("id, title, priority, due_date")
+        .eq("status", "inbox")
+        .not("due_date", "is", null)
+        .lte("due_date", today)
+        .order("due_date"),
       supabase.from("finances_debts").select("*").eq("active", true),
     ]);
 
@@ -110,35 +110,37 @@ export async function POST(request: Request) {
       return { name, completed_today: log?.completed ?? false };
     });
 
+    // Habit completion rate last 7 days
+    const habitCompletionSummary = (habits ?? []).map((h: Record<string, unknown>) => {
+      const logs = (habitLogs ?? []).filter(
+        (l: Record<string, unknown>) => l.habit_id === h.id
+      );
+      const completed = logs.filter((l: Record<string, unknown>) => l.completed).length;
+      return {
+        habit: h.name,
+        completed_last_7d: completed,
+        total_logs: logs.length,
+        done_today: todayHabitLogs.some(
+          (l: Record<string, unknown>) => l.habit_id === h.id && l.completed
+        ),
+      };
+    });
+
     const context = {
       today,
-      projects: (projects ?? []).map((p: Record<string, unknown>) => ({
-        name: p.name,
-        stage: p.stage,
-        last_update:
-          (recentUpdates ?? [])
-            .filter((u: Record<string, unknown>) => u.project_id === p.id)
-            .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
-              String(b.date).localeCompare(String(a.date))
-            )[0]?.date ?? "no updates",
+      active_tasks: (todayTasks ?? []).map((t: Record<string, unknown>) => ({
+        title: t.title,
+        priority: t.priority,
+        status: t.status,
+        due_date: t.due_date ?? null,
+        area: t.area,
       })),
-      recent_project_updates: (recentUpdates ?? []).slice(0, 10).map(
-        (u: Record<string, unknown>) => ({
-          project: (u.projects as Record<string, unknown>)?.name,
-          date: u.date,
-          what_i_did: u.what_i_did,
-          next_action: u.next_action,
-          what_is_blocked: u.what_is_blocked,
-        })
-      ),
-      todays_tasks: todayTasks ?? [],
-      habit_completion_7d: (habitLogs ?? []).map(
-        (l: Record<string, unknown>) => ({
-          habit: habitNameMap.get(l.habit_id as string) ?? l.habit_id,
-          date: l.date,
-          completed: l.completed,
-        })
-      ),
+      overdue_inbox_tasks: (inboxTasks ?? []).map((t: Record<string, unknown>) => ({
+        title: t.title,
+        priority: t.priority,
+        due_date: t.due_date,
+      })),
+      habit_completion_7d: habitCompletionSummary,
       habits_to_watch: habitsToWatchStatus,
       active_debts: (debts ?? []).map((d: Record<string, unknown>) => ({
         name: d.name,
@@ -167,7 +169,7 @@ Analyze the provided context and return exactly 3-5 insights as a JSON array. Ea
 Respond with ONLY valid JSON, no markdown, no prose:
 {"insights": [...]}
 
-Prioritize ruthlessly: projects stalling (no updates 7+ days), overdue tasks, habit streak gaps, debt payments due this week. Flag if "Charge headphones" habit was skipped — it affects work quality. Identify cross-project patterns. Be the advisor who tells Miguel what he needs to hear.`,
+Focus exclusively on: today's tasks (what needs doing, what's overdue), habit streaks and gaps over the last 7 days, and debt payments due this week. Flag if "Charge headphones" was skipped — it affects work quality. Do NOT comment on projects, project updates, or momentum tracking — Miguel tracks work through his task board, not activity logs.`,
     });
 
     const raw =
