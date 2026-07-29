@@ -32,7 +32,6 @@ function ItemRow({
   onConvert: (item: GroceryItem) => void;
   onRemove?: (item: GroceryItem) => void;
 }) {
-  const [hovered, setHovered] = useState(false);
   const [converting, setConverting] = useState(false);
 
   const handleConvert = async () => {
@@ -42,52 +41,50 @@ function ItemRow({
   };
 
   return (
-    <div
-      className="flex items-center gap-2 py-1 group"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="flex items-center gap-2 py-1.5 px-1.5 -mx-1.5 rounded border-b border-line/15 last:border-b-0 hover:bg-raised/30 active:bg-raised/50 transition-colors group">
+      {/* Checkbox */}
       <button
         onClick={() => onToggle(item)}
         className={[
-          "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors",
+          "w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors",
           item.checked
             ? "border-teal bg-teal/20"
             : "border-line hover:border-teal/60",
         ].join(" ")}
       >
-        {item.checked && <Check className="w-2.5 h-2.5 text-teal" />}
+        {item.checked && <Check className="w-3 h-3 text-teal" />}
       </button>
 
+      {/* Item name */}
       <span
         className={[
-          "text-sm flex-1 leading-snug transition-colors",
+          "text-sm flex-1 leading-snug transition-colors min-w-0",
           item.checked ? "text-muted/50 line-through" : "text-bright",
         ].join(" ")}
       >
         {item.name}
       </span>
 
-      {hovered && (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={handleConvert}
-            disabled={converting}
-            title="Crear tarea"
-            className="flex items-center gap-0.5 text-[9px] font-mono text-muted/40 hover:text-teal transition-colors disabled:opacity-40"
-          >
-            <ArrowRight className="w-3 h-3" />
-            tarea
-          </button>
-          {!item.is_permanent && onRemove && (
-            <button
-              onClick={() => onRemove(item)}
-              className="text-muted/30 hover:text-danger transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
+      {/* Task button — always visible (dimmed), full opacity on row hover */}
+      <button
+        onClick={handleConvert}
+        disabled={converting}
+        title="Crear tarea: Comprar este ítem"
+        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono text-muted/35 hover:text-teal hover:bg-teal/10 active:bg-teal/20 transition-colors disabled:opacity-30 shrink-0 opacity-40 group-hover:opacity-100"
+      >
+        <ArrowRight className="w-3 h-3" />
+        tarea
+      </button>
+
+      {/* Remove button (temp items only) */}
+      {!item.is_permanent && onRemove && (
+        <button
+          onClick={() => onRemove(item)}
+          className="opacity-40 group-hover:opacity-100 text-muted/40 hover:text-danger transition-all shrink-0"
+          title="Eliminar"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       )}
     </div>
   );
