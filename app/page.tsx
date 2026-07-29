@@ -128,29 +128,11 @@ export default async function CommandCenterPage() {
 
   const quote = getDailyQuote();
 
-  const calendarIds = [
-    process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_EMBED_ID,
-    "0gei4aji3p0513df7qc5vlm4jiv9l4ds@import.calendar.google.com",
-    "hjq8h0ai6bn8a5cv0sqkc7q5p9rpjjej@import.calendar.google.com",
-    "en.usa#holiday@group.v.calendar.google.com",
-    "en.co#holiday@group.v.calendar.google.com",
-    "878ogioo72nqsns1fas1f0nhajm8rsg4@import.calendar.google.com",
-    "vagktll14fc603rfrok0iho7si5idue2@import.calendar.google.com",
-  ].filter(Boolean) as string[];
-  const calendarParams = calendarIds.map((id) => `src=${encodeURIComponent(id)}`).join("&");
-  const calendarEmbedUrl = calendarIds.length
-    ? `https://calendar.google.com/calendar/embed?${calendarParams}&ctz=America%2FBogota&mode=WEEK&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0`
-    : "";
-
   return (
     <div className="p-4 lg:p-6 min-h-full overflow-x-hidden">
       {/*
-        4-section layout using CSS grid on desktop.
-        On mobile (flex-col) the DOM order controls stacking:
-          1. [Habits + TopPriorities]  — col 1, row 1
-          2. [Review banners + AI]     — col 2, row 1
-          3. [Sports + Weather + Quote]— col 1, row 2
-          4. [Calendar + News]         — col 2, row 2
+        3-section layout. Col 2 spans both rows so there is no mid-column gap.
+        Mobile DOM order: Habits → AI/Tasks/News → Sports/Weather/Quote
       */}
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_2fr] gap-4 items-start">
 
@@ -221,14 +203,14 @@ export default async function CommandCenterPage() {
           </div>
         </div>
 
-        {/* ─── Section 2 (col 2, row 1): AI Briefing + Google Tasks ─── */}
-        <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-1">
+        {/* ─── Section 2 (col 2, rows 1–2): AI Briefing + Google Tasks + News ─── */}
+        <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
 
-          {/* AI Daily Briefing */}
           <AIBriefingCard />
 
-          {/* Google Tasks — placed here to fill space below briefing */}
           <GoogleTasksWidget />
+
+          <NewsWidget />
         </div>
 
         {/* ─── Section 3 (col 1, row 2): Sports + Weather + Quote ─── */}
@@ -250,78 +232,6 @@ export default async function CommandCenterPage() {
           </div>
         </div>
 
-        {/* ─── Section 4 (col 2, row 2): Calendar + News ─── */}
-        <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-2">
-
-          {/* Google Calendar embed — double-invert for dark mode */}
-          {calendarEmbedUrl ? (
-            <div className="bg-card border border-line rounded-lg overflow-hidden">
-              <p className="text-[10px] font-mono uppercase tracking-widest text-muted px-4 pt-4 pb-2">
-                Calendar
-              </p>
-              <div
-                style={{
-                  filter: "invert(1) hue-rotate(180deg)",
-                  borderRadius: "0 0 8px 8px",
-                  overflow: "hidden",
-                }}
-              >
-                <iframe
-                  src={calendarEmbedUrl}
-                  style={{
-                    border: 0,
-                    filter: "invert(1) hue-rotate(180deg)",
-                    display: "block",
-                  }}
-                  width="100%"
-                  className="h-[320px] lg:h-[420px]"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="bg-card border border-line rounded-lg p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">📅</span>
-                <p className="text-[10px] font-mono uppercase tracking-widest text-muted">
-                  Google Calendar
-                </p>
-              </div>
-              <p className="text-xs text-muted/70 mb-4">
-                To embed your calendar here:
-              </p>
-              <ol className="space-y-2">
-                {[
-                  "Go to calendar.google.com",
-                  <>Click the ⚙ gear icon → <span className="text-bright">Settings</span></>,
-                  <>Find your calendar under <span className="text-bright">&quot;Settings for my calendars&quot;</span></>,
-                  <>Scroll to <span className="text-bright">&quot;Integrate calendar&quot;</span></>,
-                  <>Copy the <span className="text-teal">Calendar ID</span> (looks like yourname@gmail.com)</>,
-                  <>Open <span className="text-teal font-mono">.env.local</span> in your project folder</>,
-                  <><span className="text-teal font-mono">NEXT_PUBLIC_GOOGLE_CALENDAR_EMBED_ID=</span><span className="text-bright font-mono">your-calendar-id</span></>,
-                  "Restart the dev server",
-                ].map((step, i) => (
-                  <li key={i} className="flex items-start gap-2.5">
-                    <span className="text-[10px] font-mono text-teal shrink-0 mt-0.5 w-4">
-                      {i + 1}.
-                    </span>
-                    <span className="text-xs text-muted/80 leading-relaxed">{step}</span>
-                  </li>
-                ))}
-              </ol>
-              <a
-                href="https://calendar.google.com/calendar/r/settings"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 mt-4 text-[11px] font-mono text-teal hover:underline"
-              >
-                Open Google Calendar Settings →
-              </a>
-            </div>
-          )}
-
-          {/* News Feed */}
-          <NewsWidget />
-        </div>
       </div>
     </div>
   );
