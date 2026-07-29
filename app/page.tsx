@@ -146,7 +146,7 @@ export default async function CommandCenterPage() {
       */}
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_2fr] gap-4 items-start">
 
-        {/* ─── Section 1 (col 1, row 1): Habits + Top Priorities ─── */}
+        {/* ─── Section 1 (col 1, row 1): Habits + Top Priorities + Weather ─── */}
         <div className="w-full min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
 
           <EnhancedHabits
@@ -211,6 +211,8 @@ export default async function CommandCenterPage() {
               </div>
             )}
           </div>
+
+          <WeatherWidget />
         </div>
 
         {/* ─── Section 2 (col 2, rows 1–2): AI Briefing + Google Tasks + News ─── */}
@@ -223,10 +225,8 @@ export default async function CommandCenterPage() {
           <NewsWidget />
         </div>
 
-        {/* ─── Section 3 (col 1, row 2): Weather + Quote ─── */}
+        {/* ─── Section 3 (col 1, row 2): Quote ─── */}
         <div className="w-full min-w-0 space-y-4 lg:col-start-1 lg:row-start-2">
-
-          <WeatherWidget />
 
           {/* Daily quote */}
           <div className="bg-card border border-line rounded-lg p-4">

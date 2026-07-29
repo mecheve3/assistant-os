@@ -80,11 +80,25 @@ export async function GET() {
   const lists: { id: string; title: string }[] = listsData.items ?? [];
   console.log(`[google-tasks] Found ${lists.length} task list(s): ${lists.map((l) => l.title).join(", ")}`);
 
+  // 7-day window: today 00:00 UTC → 7 days from now 23:59:59 UTC
+  const nowMs = Date.now();
+  const todayStart = new Date(nowMs);
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const windowEnd = new Date(todayStart.getTime() + 7 * 86_400_000 + 86_399_999);
+  const dueMin = todayStart.toISOString();
+  const dueMax = windowEnd.toISOString();
+
   const tasksByList = await Promise.all(
     lists.map(async (list) => {
       try {
+        const params = new URLSearchParams({
+          showCompleted: "false",
+          maxResults: "50",
+          dueMin,
+          dueMax,
+        });
         const res = await fetch(
-          `${TASKS_BASE}/lists/${list.id}/tasks?showCompleted=false&maxResults=50`,
+          `${TASKS_BASE}/lists/${list.id}/tasks?${params}`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
         if (!res.ok) {
@@ -95,7 +109,7 @@ export async function GET() {
         const data = await res.json();
         const tasks = (data.items ?? []) as { id: string; title: string; due?: string; status?: string }[];
         const pending = tasks.filter((t) => t.status !== "completed");
-        console.log(`[google-tasks] List "${list.title}": ${pending.length} pending tasks`);
+        console.log(`[google-tasks] List "${list.title}": ${pending.length} pending tasks (7-day window)`);
         return { listId: list.id, list: list.title, tasks: pending };
       } catch (err) {
         console.error(`[google-tasks] Exception for "${list.title}":`, err);
