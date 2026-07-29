@@ -221,11 +221,14 @@ export default async function CommandCenterPage() {
           </div>
         </div>
 
-        {/* ─── Section 2 (col 2, row 1): Review banners + AI Briefing ─── */}
+        {/* ─── Section 2 (col 2, row 1): AI Briefing + Google Tasks ─── */}
         <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-1">
 
           {/* AI Daily Briefing */}
           <AIBriefingCard />
+
+          {/* Google Tasks — placed here to fill space below briefing */}
+          <GoogleTasksWidget />
         </div>
 
         {/* ─── Section 3 (col 1, row 2): Sports + Weather + Quote ─── */}
@@ -249,9 +252,6 @@ export default async function CommandCenterPage() {
 
         {/* ─── Section 4 (col 2, row 2): Calendar + News ─── */}
         <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-2">
-
-          {/* Google Tasks */}
-          <GoogleTasksWidget />
 
           {/* Google Calendar embed — double-invert for dark mode */}
           {calendarEmbedUrl ? (

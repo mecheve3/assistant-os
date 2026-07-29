@@ -3,7 +3,7 @@
 
 -- Fix 6a: Family lunch → Wednesday
 UPDATE habits
-SET frequency_days = '["wed"]'::jsonb
+SET frequency_days = ARRAY['wed']
 WHERE LOWER(name) LIKE '%family lunch%';
 
 -- Fix 6b: Abs + Learning block → variable pool
