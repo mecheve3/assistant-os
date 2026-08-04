@@ -11,8 +11,9 @@ export async function POST(req: NextRequest) {
   const { data: tokenRow } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
-    .eq("user_id", "miguel")
     .eq("provider", "google")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (!tokenRow) {
@@ -33,7 +34,6 @@ export async function POST(req: NextRequest) {
       await supabase
         .from("oauth_tokens")
         .update({ access_token: accessToken, expires_at: expiresAtMs, updated_at: new Date().toISOString() })
-        .eq("user_id", "miguel")
         .eq("provider", "google");
     } catch (err) {
       console.error("[sync-tasks] refresh error:", err);

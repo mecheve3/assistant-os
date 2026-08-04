@@ -9,8 +9,9 @@ export async function POST() {
   const { data: tokenRow } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
-    .eq("user_id", "miguel")
     .eq("provider", "google")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (!tokenRow) {
@@ -29,7 +30,6 @@ export async function POST() {
     await supabase
       .from("oauth_tokens")
       .update({ access_token: accessToken, expires_at: expiresAt, updated_at: new Date().toISOString() })
-      .eq("user_id", "miguel")
       .eq("provider", "google");
   }
 

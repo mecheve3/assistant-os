@@ -66,8 +66,8 @@ export default async function HabitsPage() {
   const { data: gcToken } = await supabase
     .from("oauth_tokens")
     .select("provider")
-    .eq("user_id", "miguel")
     .eq("provider", "google")
+    .limit(1)
     .maybeSingle();
   const calendarConnected = !!gcToken;
 

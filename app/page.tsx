@@ -146,8 +146,8 @@ export default async function CommandCenterPage() {
       */}
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_2fr] gap-4 items-start">
 
-        {/* ─── Section 1 (col 1, row 1): Habits + Top Priorities + Weather ─── */}
-        <div className="w-full min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
+        {/* ─── Col 1: Habits + Top Priorities + Weather + Quote ─── */}
+        <div className="w-full min-w-0 space-y-4">
 
           <EnhancedHabits
             initialHabits={(habits ?? []) as Habit[]}
@@ -213,20 +213,6 @@ export default async function CommandCenterPage() {
           </div>
 
           <WeatherWidget />
-        </div>
-
-        {/* ─── Section 2 (col 2, rows 1–2): AI Briefing + Google Tasks + News ─── */}
-        <div className="w-full min-w-0 space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
-
-          <AIBriefingCard />
-
-          <GoogleTasksWidget />
-
-          <NewsWidget />
-        </div>
-
-        {/* ─── Section 3 (col 1, row 2): Quote ─── */}
-        <div className="w-full min-w-0 space-y-4 lg:col-start-1 lg:row-start-2">
 
           {/* Daily quote */}
           <div className="bg-card border border-line rounded-lg p-4">
@@ -238,6 +224,16 @@ export default async function CommandCenterPage() {
             </p>
             <p className="text-[10px] font-mono text-muted/60">— {quote.author}</p>
           </div>
+        </div>
+
+        {/* ─── Col 2: AI Briefing + Google Tasks + News ─── */}
+        <div className="w-full min-w-0 space-y-4">
+
+          <AIBriefingCard />
+
+          <GoogleTasksWidget />
+
+          <NewsWidget />
         </div>
 
       </div>
